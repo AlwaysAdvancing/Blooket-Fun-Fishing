@@ -18,7 +18,8 @@
         const multiplier = {
             'K': 1000,
             'M': 1000000,
-            'B': 1000000000
+            'B': 1000000000,
+            't': 1000000000000000000
         }[input.slice(-1)] || 1;
         
         const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
