@@ -27,3 +27,8 @@ Starts a Fishing Frenzy (Fishing Boost) for all players Instantly.
 
 Frenzy.INF.js:
 does the same as Fishing.Fenzy.js but in a loop (Does it an infinite amount of times)
+
+
+Main-Menu.js:
+Has all the features in one menu with buttons
+Also has some extra features like fx. Get any blook and change blook in-game + some flappy mods (The game while you wait)
