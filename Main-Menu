@@ -1,0 +1,367 @@
+(() => {
+    // Create menu container
+    const menu = document.createElement('div');
+    menu.style.position = 'fixed';
+    menu.style.top = '10px';
+    menu.style.right = '10px';
+    menu.style.zIndex = '9999';
+    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
+    menu.style.borderRadius = '10px';
+    menu.style.padding = '10px';
+    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    menu.style.color = 'white';
+    menu.style.fontFamily = 'Arial, sans-serif';
+    menu.style.cursor = 'move';
+    menu.style.userSelect = 'none';
+    
+    // Make menu draggable
+    let isDragging = false;
+    let offsetX, offsetY;
+    
+    menu.addEventListener('mousedown', (e) => {
+        if (e.target === menu || e.target.tagName === 'H3') {
+            isDragging = true;
+            offsetX = e.clientX - menu.getBoundingClientRect().left;
+            offsetY = e.clientY - menu.getBoundingClientRect().top;
+            menu.style.cursor = 'grabbing';
+        }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        menu.style.left = (e.clientX - offsetX) + 'px';
+        menu.style.top = (e.clientY - offsetY) + 'px';
+        menu.style.right = 'unset';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        menu.style.cursor = 'move';
+    });
+    
+    // Menu title
+    const title = document.createElement('h3');
+    title.textContent = 'Blooket Cheats (Press K to hide/show)';
+    title.style.margin = '0 0 10px 0';
+    title.style.textAlign = 'center';
+    title.style.color = '#4CAF50';
+    menu.appendChild(title);
+
+    // Set up fetch interception
+    let iframe = document.querySelector("iframe");
+    if (!iframe) {
+        iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        document.body.append(iframe);
+    }
+
+    if (window.fetch && window.fetch.call.toString() === 'function call() { [native code] }') {
+        const call = window.fetch.call;
+        window.fetch.call = function () {
+            if (!arguments[1] || !arguments[1].includes("s.blooket.com/rc")) {
+                return call.apply(this, arguments);
+            }
+        };
+    }
+
+    // Cheat functions with proper error handling
+    const cheats = {
+        autoAnswer: {
+            name: 'Auto Answer',
+            active: false,
+            interval: null,
+            func: () => {
+                try {
+                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner;
+                    const Question = stateNode.state.question || stateNode.props.client.question;
+                    
+                    if (stateNode.state.question.qType !== "typing") {
+                        if (stateNode.state.stage !== "feedback" && !stateNode.state.feedback) {
+                            let ind;
+                            for (ind = 0; ind < Question.answers.length; ind++) {
+                                let found = false;
+                                for (let j = 0; j < Question.correctAnswers.length; j++) {
+                                    if (Question.answers[ind] === Question.correctAnswers[j]) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (found) break;
+                            }
+                            document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
+                        } else {
+                            document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
+                        }
+                    } else {
+                        Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
+                    }
+                } catch (e) {
+                    console.error("Auto Answer error:", e);
+                }
+            }
+        },
+        fishingFrenzy: {
+            name: 'Fishing Frenzy',
+            active: false,
+            interval: null,
+            func: () => {
+                try {
+                    let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner;
+                    stateNode.props.liveGameController.setVal({
+                        path: `c/${stateNode.props.client.name}`,
+                        val: {
+                            b: stateNode.props.client.blook,
+                            w: stateNode.state.weight,
+                            f: "Frenzy",
+                            s: true
+                        }
+                    });
+                } catch (e) {
+                    console.error("Fishing Frenzy error:", e);
+                }
+            }
+        },
+        maxLure: {
+            name: 'Max Lure',
+            active: false,
+            func: () => {
+                try {
+                    let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner;
+                    stateNode.setState({ lure: 4 });
+                    return true;
+                } catch (e) {
+                    console.error("Max Lure error:", e);
+                    return false;
+                }
+            }
+        },
+        setWeight: {
+            name: 'Set Weight',
+            active: false,
+            func: () => {
+                try {
+                    const parseWeightInput = (input) => {
+                        input = (input || "0").trim().toUpperCase();
+                        const multiplier = {
+                            'K': 1000,
+                            'M': 1000000,
+                            'B': 1000000000,
+                            'T': 1000000000000000000
+                        }[input.slice(-1)] || 1;
+                        
+                        const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
+                        return Math.round(numberPart * multiplier);
+                    };
+
+                    let i = document.createElement('iframe');
+                    document.body.append(i);
+                    window.prompt = i.contentWindow.prompt.bind(window);
+                    i.remove();
+                    
+                    const weight = parseWeightInput(
+                        prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
+                    );
+
+                    let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner;
+                    
+                    stateNode.setState({ weight, weight2: weight });
+                    stateNode.props.liveGameController.setVal({
+                        path: `c/${stateNode.props.client.name}`,
+                        val: {
+                            b: stateNode.props.client.blook,
+                            w: weight,
+                            f: ["Crab", "Jellyfish", "Frog", "Pufferfish", "Octopus", "Narwhal", "Megalodon", "Blobfish", "Baby Shark"][Math.floor(Math.random() * 9)]
+                        }
+                    });
+                } catch (e) {
+                    console.error("Set Weight error:", e);
+                }
+            }
+        },
+        useAnyBlook: {
+            name: 'Use Any Blook',
+            active: false,
+            func: () => {
+                try {
+                    let i = document.createElement('iframe');
+                    document.body.append(i);
+                    window.alert = i.contentWindow.alert.bind(window);
+                    i.remove();
+                    let blooks;
+                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner;
+                    const lobby = window.location.pathname.startsWith("/play/lobby"),
+                        dashboard = !lobby && window.location.pathname.startsWith("/blooks");
+                    if (dashboard || lobby) {
+                        let blooks, key = lobby ? "keys" : "entries";
+                        const old = Object[key];
+                        Object[key] = function (obj) {
+                            if (!obj.Chick) return old.call(this, obj);
+                            blooks = obj;
+                            return (Object[key] = old).call(this, obj);
+                        };
+                        stateNode.render();
+                        if (lobby) stateNode.setState({ unlocks: Object.keys(blooks) });
+                        else stateNode.setState({ 
+                            blookData: Object.keys(blooks).reduce((a, b) => (a[b] = (stateNode.state.blookData[b] || 1), a), {}), 
+                            allSets: Object.values(blooks).reduce((a, b) => (b.set && a.includes(b.set) ? a : a.concat(b.set)), []) 
+                        });
+                    } else {
+                        alert("This only works in lobbies or the dashboard blooks page.");
+                    }
+                } catch (e) {
+                    console.error("Use Any Blook error:", e);
+                }
+            }
+        },
+        changeBlook: {
+            name: 'Change Blook',
+            active: false,
+            func: () => {
+                try {
+                    let i = document.createElement('iframe');
+                    document.body.append(i);
+                    window.prompt = i.contentWindow.prompt.bind(window);
+                    i.remove();
+                    let { props } = Object.values((function react(r = document.querySelector("body>div")) { 
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                    })())[1].children[0]._owner.stateNode;
+                    props.liveGameController.setVal({ 
+                        path: `c/${props.client.name}/b`, 
+                        val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) 
+                    });
+                } catch (e) {
+                    console.error("Change Blook error:", e);
+                }
+            }
+        },
+        setFlappyScore: {
+            name: 'Set Flappy Score',
+            active: false,
+            func: () => {
+                try {
+                    let i = document.createElement('iframe');
+                    document.body.append(i);
+                    window.prompt = i.contentWindow.prompt.bind(window);
+                    i.remove();
+                    
+                    // Execute cheat
+                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
+                } catch (e) {
+                    console.error("Set Flappy Score error:", e);
+                }
+            }
+        },
+        toggleGhostMode: {
+            name: 'Toggle Ghost Mode',
+            active: false,
+            func: () => {
+                try {
+                    // Execute cheat
+                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[0].current.config.sceneConfig.physics.world.bodies.entries.forEach(x => {
+                        if (!x.gameObject.frame.texture.key.startsWith("blook")) return;
+                        x.checkCollision.none = x.gameObject.alpha === 1;
+                        x.gameObject.setAlpha(x.gameObject.alpha === 1 ? 0.5 : 1);
+                    });
+                } catch (e) {
+                    console.error("Toggle Ghost Mode error:", e);
+                }
+            }
+        }
+    };
+
+    // Create buttons for each cheat
+    Object.keys(cheats).forEach(key => {
+        const cheat = cheats[key];
+        const btn = document.createElement('button');
+        btn.textContent = cheat.name;
+        btn.style.display = 'block';
+        btn.style.width = '100%';
+        btn.style.padding = '8px';
+        btn.style.margin = '5px 0';
+        btn.style.borderRadius = '5px';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.backgroundColor = '#4CAF50';
+        btn.style.color = 'white';
+        btn.style.fontWeight = 'bold';
+        btn.style.transition = 'all 0.3s';
+        
+        btn.onmouseover = () => {
+            btn.style.backgroundColor = '#45a049';
+        };
+        
+        btn.onmouseout = () => {
+            btn.style.backgroundColor = cheat.active ? '#45a049' : '#4CAF50';
+        };
+        
+        btn.onclick = () => {
+            if (cheat.active && cheat.interval) {
+                clearInterval(cheat.interval);
+                cheat.active = false;
+                btn.style.backgroundColor = '#4CAF50';
+            } else {
+                if (key === 'autoAnswer' || key === 'fishingFrenzy') {
+                    cheat.interval = setInterval(cheat.func, 500);
+                } else {
+                    cheat.func();
+                    if (!cheat.interval) return;
+                }
+                cheat.active = true;
+                btn.style.backgroundColor = '#45a049';
+            }
+        };
+        
+        menu.appendChild(btn);
+    });
+    
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Menu';
+    closeBtn.style.display = 'block';
+    closeBtn.style.width = '100%';
+    closeBtn.style.padding = '8px';
+    closeBtn.style.margin = '5px 0';
+    closeBtn.style.borderRadius = '5px';
+    closeBtn.style.border = 'none';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.style.backgroundColor = '#f44336';
+    closeBtn.style.color = 'white';
+    closeBtn.style.fontWeight = 'bold';
+    
+    closeBtn.onmouseover = () => {
+        closeBtn.style.backgroundColor = '#d32f2f';
+    };
+    
+    closeBtn.onmouseout = () => {
+        closeBtn.style.backgroundColor = '#f44336';
+    };
+    
+    closeBtn.onclick = () => {
+        menu.remove();
+        document.removeEventListener('keydown', toggleMenuVisibility);
+    };
+    
+    menu.appendChild(closeBtn);
+    
+    // Add menu to page
+    document.body.appendChild(menu);
+    
+    // Toggle menu visibility with K key
+    const toggleMenuVisibility = (e) => {
+        if (e.key === 'k' || e.key === 'K') {
+            menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+        }
+    };
+    
+    document.addEventListener('keydown', toggleMenuVisibility);
+})();
