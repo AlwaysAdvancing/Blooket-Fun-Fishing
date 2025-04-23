@@ -21,5 +21,9 @@ Sets your weight to what you want
 
 When you execute it it auto-sets you lure level to max
 
-Frenzy.js:
+Fishing-Frenzy.js:
 Starts a Fishing Frenzy (Fishing Boost) for all players Instantly.
+
+
+Frenzy.INF.js:
+does the same as Fishing.Fenzy.js but in a loop (Does it an infinite amount of times)
