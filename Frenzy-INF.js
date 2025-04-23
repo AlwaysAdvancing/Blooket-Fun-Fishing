@@ -42,6 +42,6 @@
     // Execute immediately
     executeCheat();
     
-    // Set up the infinite loop with 20-second intervals
-    setInterval(executeCheat, 5000);
+
+    setInterval(executeCheat, 1000);
 })();
