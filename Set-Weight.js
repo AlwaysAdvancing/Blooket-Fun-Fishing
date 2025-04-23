@@ -19,7 +19,7 @@
             'K': 1000,
             'M': 1000000,
             'B': 1000000000,
-            't': 1000000000000000000
+            'T': 1000000000000000000
         }[input.slice(-1)] || 1;
         
         const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
@@ -33,7 +33,7 @@
         i.remove();
         
         const weight = parseWeightInput(
-            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B)")
+            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
         );
 
         let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
