@@ -101,7 +101,147 @@
     td2Btn.onmouseout = () => td2Btn.style.backgroundColor = '#9C27B0';
 
     // Add Battle Royale button
-    const battleRoyaleBtn = document.createElement('button');
+    function createBattleRoyaleMenu() {
+    if (currentMenu) currentMenu.remove();
+    const menu = document.createElement('div');
+    menu.style.position = 'fixed';
+    menu.style.top = '10px';
+    menu.style.right = '10px';
+    menu.style.zIndex = '9999';
+    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
+    menu.style.borderRadius = '10px';
+    menu.style.padding = '10px';
+    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    menu.style.color = 'white';
+    menu.style.fontFamily = 'Arial, sans-serif';
+    menu.style.cursor = 'move';
+    menu.style.userSelect = 'none';
+    menu.style.resize = 'both';
+    menu.style.overflow = 'auto';
+    menu.style.width = '350px';
+    menu.style.height = '450px';
+    menu.style.maxHeight = '80vh';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    currentMenu = menu;
+
+    // Draggable logic (same as TD2)
+    let isDragging = false, offsetX, offsetY;
+    menu.addEventListener('mousedown', e => {
+        if (e.target === menu || e.target.tagName === 'H3') {
+            isDragging = true;
+            offsetX = e.clientX - menu.getBoundingClientRect().left;
+            offsetY = e.clientY - menu.getBoundingClientRect().top;
+            menu.style.cursor = 'grabbing';
+        }
+    });
+    document.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        menu.style.left = (e.clientX - offsetX) + 'px';
+        menu.style.top = (e.clientY - offsetY) + 'px';
+        menu.style.right = 'unset';
+    });
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        menu.style.cursor = 'move';
+    });
+
+    const title = document.createElement('h3');
+    title.textContent = 'Battle Royale Cheats (Press M to hide/show)';
+    title.style.margin = '0 0 10px 0';
+    title.style.textAlign = 'center';
+    title.style.color = '#2196F3';
+    menu.appendChild(title);
+
+    const addDivider = (label) => {
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.margin = '10px 0';
+        const hr = document.createElement('hr');
+        hr.style.flex = '1';
+        hr.style.border = '1px solid #555';
+        hr.style.margin = '0 5px';
+        const span = document.createElement('span');
+        span.textContent = label;
+        span.style.color = '#aaa';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = 'bold';
+        container.appendChild(hr);
+        container.appendChild(span);
+        container.appendChild(hr.cloneNode());
+        menu.appendChild(container);
+    };
+
+    // GAME DIVIDER
+    addDivider('Game');
+    const autoAnswerBtn = document.createElement('button');
+    autoAnswerBtn.textContent = 'Auto Answer';
+    autoAnswerBtn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#2196F3;color:white;font-weight:bold;transition:all 0.3s;';
+    autoAnswerBtn.onclick = () => {
+        const cheat = async () => {
+            const { stateNode } = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner;
+            const Question = stateNode.state.question || stateNode.props.client.question;
+            if (stateNode.state.question.qType != "typing") {
+                if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
+                    let ind;
+                    for (ind = 0; ind < Question.answers.length; ind++) {
+                        if (Question.correctAnswers.includes(Question.answers[ind])) break;
+                    }
+                    document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
+                } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
+            } else {
+                Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
+            }
+        };
+        setInterval(cheat, 500);
+    };
+    menu.appendChild(autoAnswerBtn);
+
+    // OTHER DIVIDER
+    addDivider('Other');
+    const otherCheats = [
+        { name: 'All Answers Correct', func: () => {
+            const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
+            for (let i = 0; i < stateNode.questions.length; i++) {
+                const q = stateNode.questions[i];
+                q.correctAnswers = [...q.answers];
+            }
+            if (stateNode.props.liveGameController) {
+                stateNode.props.liveGameController.setVal({
+                    path: 'questions',
+                    val: stateNode.questions.map(q => ({
+                        ...q,
+                        correctAnswers: [...q.answers]
+                    }))
+                });
+            }
+        }},
+        { name: 'Use Any Blook', func: () => alert('Placeholder: Use Any Blook') },
+        { name: 'Change Blook', func: () => alert('Placeholder: Change Blook') },
+        { name: 'Set Flappy Score', func: () => alert('Placeholder: Set Flappy Score') },
+        { name: 'Toggle Ghost Mode', func: () => alert('Placeholder: Toggle Ghost Mode') }
+    ];
+
+    otherCheats.forEach(c => {
+        const btn = document.createElement('button');
+        btn.textContent = c.name;
+        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#4CAF50;color:white;font-weight:bold;transition:all 0.3s;';
+        btn.onclick = c.func;
+        menu.appendChild(btn);
+    });
+
+    // CLOSE BUTTON
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Menu';
+    closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
+    closeBtn.onclick = () => menu.remove();
+    menu.appendChild(closeBtn);
+
+    document.body.appendChild(menu);
+}
+
+const battleRoyaleBtn = document.createElement('button');
     battleRoyaleBtn.textContent = 'Battle Royale';
     battleRoyaleBtn.style.width = '100%';
     battleRoyaleBtn.style.padding = '12px';
@@ -992,6 +1132,292 @@
 
         document.body.appendChild(menu);
     };
+    
+function createTD2menu() {
+    const menu = document.createElement('div');
+    menu.style.position = 'fixed';
+    menu.style.top = '10px';
+    menu.style.right = '10px';
+    menu.style.zIndex = '9999';
+    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
+    menu.style.borderRadius = '10px';
+    menu.style.padding = '10px';
+    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+    menu.style.color = 'white';
+    menu.style.fontFamily = 'Arial, sans-serif';
+    menu.style.cursor = 'move';
+    menu.style.userSelect = 'none';
+    menu.style.resize = 'both';
+    menu.style.overflow = 'auto';
+    menu.style.width = '350px';
+    menu.style.height = '450px';
+    menu.style.maxHeight = '80vh';
+    menu.style.display = 'flex';
+    menu.style.flexDirection = 'column';
+    
+    currentMenu = menu;
+
+    // DRAGGABLE
+    let isDragging = false, offsetX, offsetY;
+    menu.addEventListener('mousedown', e => {
+        if (e.target === menu || e.target.tagName === 'H3') {
+            isDragging = true;
+            offsetX = e.clientX - menu.getBoundingClientRect().left;
+            offsetY = e.clientY - menu.getBoundingClientRect().top;
+            menu.style.cursor = 'grabbing';
+        }
+    });
+    document.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        menu.style.left = (e.clientX - offsetX) + 'px';
+        menu.style.top = (e.clientY - offsetY) + 'px';
+        menu.style.right = 'unset';
+    });
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+        menu.style.cursor = 'move';
+    });
+
+    // Resize handles
+    ['top-left','top-right','bottom-left','bottom-right'].forEach(pos=>{
+        const handle = document.createElement('div');
+        handle.style.position = 'absolute';
+        handle.style.width = handle.style.height = '15px';
+        handle.style.backgroundColor = 'rgba(255,255,255,0.3)';
+        handle.style.zIndex = '10000';
+        handle.style.cursor = 
+            pos.includes('right') ? (pos.includes('bottom') ? 'nwse-resize' : 'nesw-resize') :
+            (pos.includes('bottom') ? 'nesw-resize' : 'nwse-resize');
+
+        if (pos.includes('right')) handle.style.right = '0';
+        else handle.style.left = '0';
+        if (pos.includes('bottom')) handle.style.bottom = '0';
+        else handle.style.top = '0';
+
+        let isResizing = false, startX, startY, startW, startH, startT, startL;
+        handle.addEventListener('mousedown', e => {
+            isResizing = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            startW = parseInt(getComputedStyle(menu).width);
+            startH = parseInt(getComputedStyle(menu).height);
+            startT = parseInt(getComputedStyle(menu).top);
+            startL = parseInt(getComputedStyle(menu).left);
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', e => {
+            if (!isResizing) return;
+            const dx = e.clientX - startX, dy = e.clientY - startY;
+            if (pos.includes('right')) menu.style.width = (startW + dx) + 'px';
+            else {
+                menu.style.width = (startW - dx) + 'px';
+                menu.style.left = (startL + dx) + 'px';
+            }
+            if (pos.includes('bottom')) menu.style.height = (startH + dy) + 'px';
+            else {
+                menu.style.height = (startH - dy) + 'px';
+                menu.style.top = (startT + dy) + 'px';
+            }
+        });
+        document.addEventListener('mouseup', () => { isResizing = false; });
+        menu.appendChild(handle);
+    });
+
+    // Header
+    const title = document.createElement('h3');
+    title.textContent = 'Tower Defense 2 Cheats (Press K to hide/show)';
+    title.style.margin = '0 0 10px 0';
+    title.style.textAlign = 'center';
+    title.style.color = '#9C27B0';
+    menu.appendChild(title);
+
+    // Utility function for dividers
+    const addDivider = (label) => {
+        const container = document.createElement('div');
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.margin = '10px 0';
+        const hr = document.createElement('hr');
+        hr.style.flex = '1';
+        hr.style.border = '1px solid #555';
+        hr.style.margin = '0 5px';
+        const span = document.createElement('span');
+        span.textContent = label;
+        span.style.color = '#aaa';
+        span.style.fontSize = '12px';
+        span.style.fontWeight = 'bold';
+        container.appendChild(hr);
+        container.appendChild(span);
+        container.appendChild(hr.cloneNode());
+        menu.appendChild(container);
+    };
+
+    // === GAME DIVIDER & BUTTONS ===
+    addDivider('Game');
+
+    const cheats = [
+        { name: 'Auto Answer', func: () => {
+            const cheat = async () => {
+                const { stateNode } = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner;
+                const Question = stateNode.state.question || stateNode.props.client.question;
+                if (stateNode.state.question.qType != "typing") {
+                    if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
+                        let ind;
+                        for (ind = 0; ind < Question.answers.length; ind++) {
+                            if (Question.correctAnswers.includes(Question.answers[ind])) break;
+                        }
+                        document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
+                    } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
+                } else {
+                    Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
+                }
+            };
+            setInterval(cheat, 500);
+        }},
+        { name: 'Max Towers', url: 'maxTowers' },
+        { name: 'Remove Enemies', url: 'removeEnemies' },
+        { name: 'Set Coins', url: 'setCoins', prompt: 'How many tokens would you like?', stateKey: 'coins' },
+        { name: 'Set Health', url: 'setHealth', prompt: 'How much health do you want?', stateKey: 'health' },
+        { name: 'Set Round', url: 'setRound', prompt: 'What round do you want to set to?', stateKey: 'round' }
+    ];
+
+    cheats.forEach(c => {
+        const btn = document.createElement('button');
+        btn.textContent = c.name;
+        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#9C27B0;color:white;font-weight:bold;transition:all 0.3s;';
+        btn.onmouseover = () => btn.style.backgroundColor = '#7B1FA2';
+        btn.onmouseout = () => btn.style.backgroundColor = '#9C27B0';
+        btn.onclick = () => {
+            if (c.func) return c.func();
+            if (c.prompt) {
+                const val = parseInt(prompt(c.prompt)) || 0;
+                const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
+                stateNode.setState({ [c.stateKey]: val });
+            } else {
+                const cheat = async () => {
+                    const node = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
+                    node.state.towers?.forEach(t => {
+                        t.stats.dmg = 1e6;
+                        t.stats.fireRate = 50;
+                        t.stats.ghostDetect = true;
+                        t.stats.maxTargets = 1e6;
+                        if (t.stats.numProjectiles) t.stats.numProjectiles = 100;
+                        t.stats.range = 100;
+                        if (t.stats.auraBuffs) for (const buff in t.stats.auraBuffs) t.stats.auraBuffs[buff] *= 100;
+                    });
+                };
+                cheat();
+            }
+        };
+        menu.appendChild(btn);
+    });
+
+    // === OTHER DIVIDER & BUTTONS ===
+    addDivider('Other');
+    const otherCheats = [
+        { name: 'All Answers Correct (Global)', func: () => {
+            const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
+            for (let i = 0; i < stateNode.questions.length; i++) {
+                const q = stateNode.questions[i];
+                q.correctAnswers = [...q.answers];
+            }
+            if (stateNode.props.liveGameController) {
+                stateNode.props.liveGameController.setVal({
+                    path: 'questions',
+                    val: stateNode.questions.map(q => ({
+                        ...q,
+                        correctAnswers: [...q.answers]
+                    }))
+                });
+            }
+        }},
+        { name: 'Custom Name (Ignore Random name)', func: () => {
+            Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode.setState({ isRandom: false, client: { name: "" } });
+            document.querySelector('[class*="nameInput"]')?.focus?.();
+        }},
+        { name: 'Use Any Blook', func: () => alert("Use Any Blook script would go here.") },
+        { name: 'Change Blook', func: () => alert("Change Blook script would go here.") },
+        { name: 'Set Flappy Score', func: () => alert("Set Flappy Score script would go here.") },
+        { name: 'Toggle Ghost Mode', func: () => alert("Toggle Ghost Mode script would go here.") }
+    ];
+
+    otherCheats.forEach(c => {
+        const btn = document.createElement('button');
+        btn.textContent = c.name;
+        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#4CAF50;color:white;font-weight:bold;transition:all 0.3s;';
+        btn.onmouseover = () => btn.style.backgroundColor = '#388E3C';
+        btn.onmouseout = () => btn.style.backgroundColor = '#4CAF50';
+        btn.onclick = c.func;
+        menu.appendChild(btn);
+    });
+
+    // === SETTINGS ===
+    addDivider('Menu Settings');
+    const colorPicker = document.createElement('input');
+    colorPicker.type = 'color';
+    colorPicker.value = '#282832';
+    colorPicker.style.marginBottom = '10px';
+
+    const rainbowCheckbox = document.createElement('input');
+    rainbowCheckbox.type = 'checkbox';
+    rainbowCheckbox.style.marginLeft = '10px';
+    const rainbowLabel = document.createElement('label');
+    rainbowLabel.style.color = 'white';
+    rainbowLabel.textContent = ' Rainbow';
+    rainbowLabel.insertBefore(rainbowCheckbox, rainbowLabel.firstChild);
+
+    let rainbowInterval, hue = 0;
+    rainbowCheckbox.onchange = () => {
+        if (rainbowCheckbox.checked) {
+            rainbowInterval = setInterval(() => {
+                hue = (hue + 1) % 360;
+                menu.style.backgroundColor = `hsla(${hue}, 80%, 50%, 0.9)`;
+            }, 50);
+        } else {
+            clearInterval(rainbowInterval);
+            menu.style.backgroundColor = colorPicker.value + 'e6';
+        }
+    };
+
+    colorPicker.oninput = () => {
+        if (rainbowInterval) {
+            clearInterval(rainbowInterval);
+            rainbowCheckbox.checked = false;
+        }
+        menu.style.backgroundColor = colorPicker.value + 'e6';
+    };
+
+    menu.appendChild(colorPicker);
+    menu.appendChild(rainbowLabel);
+
+    // Reset size
+    const resetBtn = document.createElement('button');
+    resetBtn.textContent = 'Reset Size';
+    resetBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#607D8B;color:white;font-weight:bold;cursor:pointer;';
+    resetBtn.onclick = () => {
+        menu.style.width = '350px';
+        menu.style.height = '450px';
+        menu.style.left = '';
+        menu.style.right = '10px';
+        menu.style.top = '10px';
+        menu.style.transform = '';
+    };
+    menu.appendChild(resetBtn);
+
+    // Close
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close Menu';
+    closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
+    closeBtn.onclick = () => {
+        if (rainbowInterval) clearInterval(rainbowInterval);
+        menu.remove();
+    };
+    menu.appendChild(closeBtn);
+
+    document.body.appendChild(menu);
+}
+
+
 
     // Function to create the Crypto Hack menu
     const createCryptoMenu = () => {
@@ -2617,6 +3043,8 @@ const createMonsterBrawlMenu = () => {
     fishingBtn.onclick = createFishingMenu;
     cryptoBtn.onclick = createCryptoMenu;
     monsterBrawlBtn.onclick = createMonsterBrawlMenu;
+    td2Btn.onclick = () => { modePopup.remove(); createTD2menu(); };
+    battleRoyaleBtn.onclick = () => { modePopup.remove(); createBattleRoyaleMenu(); };
 
     modePopup.appendChild(fishingBtn);
     modePopup.appendChild(cryptoBtn);
@@ -2625,5 +3053,7 @@ const createMonsterBrawlMenu = () => {
     modePopup.appendChild(monsterBrawlBtn);
     document.body.appendChild(modePopup);
 })();
-    //     td2Btn.onclick = createTowerDefense2Menu;
-    //     battleRoyaleBtn.onclick = createBattleRoyaleMenu;
+
+
+
+
