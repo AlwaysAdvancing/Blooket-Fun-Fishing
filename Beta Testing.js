@@ -3061,7 +3061,7 @@ adminOverlay.style.top = '0';
 adminOverlay.style.left = '0';
 adminOverlay.style.width = '100vw';
 adminOverlay.style.height = '100vh';
-adminOverlay.style.backgroundColor = 'black';  // Customize color
+adminOverlay.style.backgroundColor = 'black';  // Change color here
 adminOverlay.style.opacity = '0.95';
 adminOverlay.style.zIndex = '9999999';
 adminOverlay.style.display = 'none';
@@ -3070,14 +3070,21 @@ document.body.appendChild(adminOverlay);
 let overlayActive = false;
 
 document.addEventListener('keydown', (e) => {
+  console.log('Key pressed:', e.key, 'Overlay active:', overlayActive);
+
   if (e.key === 'Insert') {
     if (!overlayActive) {
+      console.log('Activating overlay');
       adminOverlay.style.display = 'block';
       overlayActive = true;
+    } else {
+      console.log('Insert pressed but overlay already active — ignoring');
     }
   }
+
   if (e.key.toLowerCase() === 'o') {
     if (overlayActive) {
+      console.log('Deactivating overlay');
       adminOverlay.style.display = 'none';
       overlayActive = false;
     }
