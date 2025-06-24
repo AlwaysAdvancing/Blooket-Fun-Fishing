@@ -3054,15 +3054,16 @@ const createMonsterBrawlMenu = () => {
     document.body.appendChild(modePopup);
 })();
 
+// === Admin Overlay ===
 const adminOverlay = document.createElement('div');
 adminOverlay.style.position = 'fixed';
 adminOverlay.style.top = '0';
 adminOverlay.style.left = '0';
 adminOverlay.style.width = '100vw';
 adminOverlay.style.height = '100vh';
-adminOverlay.style.backgroundColor = 'black';  // Change color here
+adminOverlay.style.backgroundColor = 'black';  // Customize color
 adminOverlay.style.opacity = '0.95';
-adminOverlay.style.zIndex = '9999999';  // very high to cover everything
+adminOverlay.style.zIndex = '9999999';
 adminOverlay.style.display = 'none';
 document.body.appendChild(adminOverlay);
 
@@ -3070,16 +3071,12 @@ let overlayActive = false;
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Insert') {
-    // Only activate if overlay is NOT already active
     if (!overlayActive) {
       adminOverlay.style.display = 'block';
       overlayActive = true;
     }
-    // Do nothing if already active
   }
-
   if (e.key.toLowerCase() === 'o') {
-    // Only hide overlay if it's active
     if (overlayActive) {
       adminOverlay.style.display = 'none';
       overlayActive = false;
