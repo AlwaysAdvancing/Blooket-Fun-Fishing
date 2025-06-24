@@ -3054,39 +3054,63 @@ const createMonsterBrawlMenu = () => {
     document.body.appendChild(modePopup);
 })();
 
-// === Admin Overlay ===
-const adminOverlay = document.createElement('div');
-adminOverlay.style.position = 'fixed';
-adminOverlay.style.top = '0';
-adminOverlay.style.left = '0';
-adminOverlay.style.width = '100vw';
-adminOverlay.style.height = '100vh';
-adminOverlay.style.backgroundColor = 'black';  // Change color here
-adminOverlay.style.opacity = '0.95';
-adminOverlay.style.zIndex = '9999999';
-adminOverlay.style.display = 'none';
-document.body.appendChild(adminOverlay);
+(async () => {
+  if (!window.firebaseApp) {
+    await new Promise((res) => {
+      const s1 = document.createElement('script');
+      s1.src = "https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js";
+      s1.onload = () => {
+        const s2 = document.createElement('script');
+        s2.src = "https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js";
+        s2.onload = res;
+        document.head.appendChild(s2);
+      };
+      document.head.appendChild(s1);
+    });
+  }
 
-let overlayActive = false;
+  if (!window.firebaseApp) {
+    window.firebaseApp = firebase.initializeApp({
+      apiKey: "AIzaSyBYnwnUWozlJ7AWw3mF9IQGbOSw-zNek1E",
+      authDomain: "blooketadminmenu.firebaseapp.com",
+      databaseURL: "https://blooketadminmenu-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "blooketadminmenu",
+      storageBucket: "blooketadminmenu.firebasestorage.app",
+      messagingSenderId: "1071736031919",
+      appId: "1:1071736031919:web:4abd6382a29818bf86a25a"
+    });
+  }
 
-document.addEventListener('keydown', (e) => {
-  console.log('Key pressed:', e.key, 'Overlay active:', overlayActive);
+  const database = firebase.database();
 
-  if (e.key === 'Insert') {
-    if (!overlayActive) {
-      console.log('Activating overlay');
-      adminOverlay.style.display = 'block';
-      overlayActive = true;
+  // Create overlay element
+  let overlay = document.getElementById('adminOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'adminOverlay';
+    Object.assign(overlay.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '100vw',
+      height: '100vh',
+      backgroundColor: 'black',
+      opacity: '0.95',
+      zIndex: '9999999',
+      display: 'none',
+      pointerEvents: 'none'
+    });
+    document.body.appendChild(overlay);
+  }
+
+  // Listen for overlay changes in Firebase and show/hide overlay accordingly
+  database.ref('overlay').on('value', (snapshot) => {
+    const isActive = snapshot.val();
+    if (isActive) {
+      overlay.style.display = 'block';
     } else {
-      console.log('Insert pressed but overlay already active — ignoring');
+      overlay.style.display = 'none';
     }
-  }
+  });
+})();
 
-  if (e.key.toLowerCase() === 'o') {
-    if (overlayActive) {
-      console.log('Deactivating overlay');
-      adminOverlay.style.display = 'none';
-      overlayActive = false;
-    }
-  }
-});
