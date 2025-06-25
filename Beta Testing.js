@@ -194,7 +194,7 @@
                 Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
             }
         };
-        setInterval(cheat, 500);
+        setInterval(cheat, 5;
     };
     menu.appendChild(autoAnswerBtn);
 
@@ -1272,7 +1272,7 @@ function createTD2menu() {
                     Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
                 }
             };
-            setInterval(cheat, 500);
+            setInterval(cheat, 5;
         }},
         { name: 'Max Towers', url: 'maxTowers' },
         { name: 'Remove Enemies', url: 'removeEnemies' },
