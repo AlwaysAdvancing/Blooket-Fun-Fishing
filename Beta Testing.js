@@ -102,7 +102,7 @@
 
     // Add Battle Royale button
     function createBattleRoyaleMenu() {
-    if (currentMenu) setInterval(cheat, 50);
+    if (currentMenu) currentMenu.remove();
     const menu = document.createElement('div');
     menu.style.position = 'fixed';
     menu.style.top = '10px';
@@ -194,7 +194,7 @@
                 Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
             }
         };
-        setInterval(cheat, 50);
+        setInterval(cheat, 500);
     };
     menu.appendChild(autoAnswerBtn);
 
@@ -235,10 +235,7 @@
     const closeBtn = document.createElement('button');
     closeBtn.textContent = 'Close Menu';
     closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
-    closeBtn.onclick = () => {
-        if (currentMenu) setInterval(cheat, 50);
-        menu.style.display = 'none';
-    };
+    closeBtn.onclick = () => menu.remove();
     menu.appendChild(closeBtn);
 
     document.body.appendChild(menu);
@@ -299,7 +296,7 @@ const battleRoyaleBtn = document.createElement('button');
 
     // Function to create the Fishing menu
     const createFishingMenu = () => {
-        if (currentMenu) setInterval(cheat, 50);
+        modePopup.remove();
         
         const menu = document.createElement('div');
         menu.style.position = 'fixed';
@@ -618,7 +615,7 @@ const battleRoyaleBtn = document.createElement('button');
                                     this.buttons.forEach(btn => {
                                         btn.style.opacity = '0';
                                         btn.style.transform = 'translateY(-10px)';
-                                        setTimeout(() => setInterval(cheat, 50), 300);
+                                        setTimeout(() => btn.remove(), 300);
                                     });
                                     this.buttons = [];
                                     this.expanded = false;
@@ -646,7 +643,7 @@ const battleRoyaleBtn = document.createElement('button');
                             this.buttons.forEach(btn => {
                                 btn.style.opacity = '0';
                                 btn.style.transform = 'translateY(-10px)';
-                                setTimeout(() => setInterval(cheat, 50), 300);
+                                setTimeout(() => btn.remove(), 300);
                             });
                             this.buttons = [];
                             this.expanded = false;
@@ -673,9 +670,7 @@ const battleRoyaleBtn = document.createElement('button');
                                 'K': 1000,
                                 'M': 1000000,
                                 'B': 1000000000,
-                                'T': 1000000000000,
-                                'Q': 1000000000000000,
-                                'I': 100000000000000000000000000000
+                                'T': 1000000000000
                             }[input.slice(-1)] || 1;
                             
                             const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
@@ -685,10 +680,10 @@ const battleRoyaleBtn = document.createElement('button');
                         let i = document.createElement('iframe');
                         document.body.append(i);
                         window.prompt = i.contentWindow.prompt.bind(window);
-                        if (currentMenu) setInterval(cheat, 50);
+                        i.remove();
                         
                         const weight = parseWeightInput(
-                            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T, 7Q)")
+                            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
                         );
 
                         let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
@@ -844,7 +839,7 @@ const battleRoyaleBtn = document.createElement('button');
             };
             
             updateAllAnswers(); // Run immediately
-            allAnswersInterval = setInterval(updateAllAnswers, 30); // Then every 3 seconds
+            allAnswersInterval = setInterval(updateAllAnswers, 3000); // Then every 3 seconds
             allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
         };
         
@@ -901,12 +896,12 @@ const battleRoyaleBtn = document.createElement('button');
         // Add special cheats in new order with Change Blook first
         const specialCheats = [
             {
-                name: 'Change Blook (INGAME TOO)',
+                name: 'Change Blook',
                 func: () => {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
                     props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
                 }
@@ -917,7 +912,7 @@ const battleRoyaleBtn = document.createElement('button');
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.alert = i.contentWindow.alert.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     let blooks;
                     const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
                     const lobby = window.location.pathname.startsWith("/play/lobby"),
@@ -942,25 +937,8 @@ const battleRoyaleBtn = document.createElement('button');
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
-                }
-            },
-            {
-                name: 'Delete Pipes',
-                func: () => {
-                    flappyPhaserGame = () => {
-                        let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode;
-                        return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return;
-                    };
-                    setInterval(() => {
-                        flappyPhaserGame().stateNode.state.game.scene.children.list
-                            .filter(a => a.texture?.key == 'pipe')
-                            .map(a => {
-                                a.scaleY = 0.1;
-                                a.y = 0;
-                            });
-                    }, 50);
                 }
             },
             {
@@ -1119,9 +1097,8 @@ const battleRoyaleBtn = document.createElement('button');
         closeBtn.onclick = () => {
             if (rainbowInterval) clearInterval(rainbowInterval);
             if (allAnswersInterval) clearInterval(allAnswersInterval);
-            if (currentMenu) setInterval(cheat, 50);
+            menu.remove();
         };
-
         
         menu.appendChild(closeBtn);
         
@@ -1295,10 +1272,10 @@ function createTD2menu() {
                     Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
                 }
             };
-            setInterval(cheat, 50);
+            setInterval(cheat, 500);
         }},
         { name: 'Max Towers', url: 'maxTowers' },
-        { name: 'setInterval(cheat, 50); Enemies', url: 'setInterval(cheat, 50);Enemies' },
+        { name: 'Remove Enemies', url: 'removeEnemies' },
         { name: 'Set Coins', url: 'setCoins', prompt: 'How many tokens would you like?', stateKey: 'coins' },
         { name: 'Set Health', url: 'setHealth', prompt: 'How much health do you want?', stateKey: 'health' },
         { name: 'Set Round', url: 'setRound', prompt: 'What round do you want to set to?', stateKey: 'round' }
@@ -1433,7 +1410,7 @@ function createTD2menu() {
     closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
     closeBtn.onclick = () => {
         if (rainbowInterval) clearInterval(rainbowInterval);
-            if (currentMenu) setInterval(cheat, 50);
+        menu.remove();
     };
     menu.appendChild(closeBtn);
 
@@ -1444,7 +1421,7 @@ function createTD2menu() {
 
     // Function to create the Crypto Hack menu
     const createCryptoMenu = () => {
-        if (currentMenu) setInterval(cheat, 50);
+        modePopup.remove();
         
         const menu = document.createElement('div');
         menu.style.position = 'fixed';
@@ -1776,7 +1753,7 @@ function createTD2menu() {
                         let i = document.createElement('iframe');
                         document.body.append(i);
                         window.prompt = i.contentWindow.prompt.bind(window);
-                        if (currentMenu) setInterval(cheat, 50);
+                        i.remove();
                         let password = prompt("What do you want to set your password to?");
                         let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
                             return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
@@ -1790,8 +1767,8 @@ function createTD2menu() {
                     cheat();
                 }
             },
-            setInterval(cheat, 50);Hack: {
-                name: 'setInterval(cheat, 50); Hack',
+            removeHack: {
+                name: 'Remove Hack',
                 active: false,
                 func: () => {
                     Object.values((function react(r = document.querySelector("body>div")) { 
@@ -1819,7 +1796,7 @@ function createTD2menu() {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     
                     const amount = parseCryptoInput(
                         prompt("How much crypto would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
@@ -1842,7 +1819,7 @@ function createTD2menu() {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     let target = prompt("Who's crypto would you like to steal?");
                     let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
                         return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
@@ -2065,7 +2042,7 @@ function createTD2menu() {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
                     props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
                 }
@@ -2076,7 +2053,7 @@ function createTD2menu() {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.alert = i.contentWindow.alert.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     let blooks;
                     const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
                     const lobby = window.location.pathname.startsWith("/play/lobby"),
@@ -2101,22 +2078,8 @@ function createTD2menu() {
                     let i = document.createElement('iframe');
                     document.body.append(i);
                     window.prompt = i.contentWindow.prompt.bind(window);
-                    if (currentMenu) setInterval(cheat, 50);
+                    i.remove();
                     Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
-                }
-            },
-                name: 'Delete Pipes',
-                func: () => {
-                        flappyPhaserGame = () => {
-                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode
-                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return
-                        }
-                        setInterval(() => {
-                            flappyPhaserGame().stateNode.state.game.scene.children.list.filter(a => a.texture?.key == 'pipe').map(a => {
-                            a.scaleY = 0.1
-                            a.y = 0
-                        }
-
                 }
             },
             {
@@ -2275,9 +2238,8 @@ function createTD2menu() {
         closeBtn.onclick = () => {
             if (rainbowInterval) clearInterval(rainbowInterval);
             if (allAnswersInterval) clearInterval(allAnswersInterval);
-            if (currentMenu) setInterval(cheat, 50);
+            menu.remove();
         };
-
         
         menu.appendChild(closeBtn);
         
@@ -2313,7 +2275,7 @@ function createTD2menu() {
     };
 // Function to create the Monster Brawl menu
 const createMonsterBrawlMenu = () => {
-    if (currentMenu) setInterval(cheat, 50);
+    modePopup.remove();
     
     const menu = document.createElement('div');
     menu.style.position = 'fixed';
@@ -2652,8 +2614,8 @@ const createMonsterBrawlMenu = () => {
                 xp.get().spawn(player.x, player.y, ((e) => 1 === e ? 1 : e < 5 ? 5 : e < 10 ? 10 : e < 20 ? 20 : e < 30 ? 30 : e < 40 ? 40 : e < 50 ? 50 : 100)(stateNode.state.level) - stateNode.xp);
             }
         },
-        setInterval(cheat, 50);Obstacles: {
-            name: 'setInterval(cheat, 50); Obstacles',
+        removeObstacles: {
+            name: 'Remove Obstacles',
             func: () => {
                 Object.values((function react(r = document.querySelector("body>div")) { 
                     return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
@@ -2846,7 +2808,7 @@ const createMonsterBrawlMenu = () => {
                 let i = document.createElement('iframe');
                 document.body.append(i);
                 window.prompt = i.contentWindow.prompt.bind(window);
-                if (currentMenu) setInterval(cheat, 50);
+                i.remove();
                 let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
                 props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
             }
@@ -2857,7 +2819,7 @@ const createMonsterBrawlMenu = () => {
                 let i = document.createElement('iframe');
                 document.body.append(i);
                 window.alert = i.contentWindow.alert.bind(window);
-                if (currentMenu) setInterval(cheat, 50);
+                i.remove();
                 let blooks;
                 const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
                 const lobby = window.location.pathname.startsWith("/play/lobby"),
@@ -2882,29 +2844,10 @@ const createMonsterBrawlMenu = () => {
                 let i = document.createElement('iframe');
                 document.body.append(i);
                 window.prompt = i.contentWindow.prompt.bind(window);
-                if (currentMenu) setInterval(cheat, 50);
+                i.remove();
                 Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
             }
         },
-            
-        {
-                name: 'Delete Pipes',
-                func: () => {
-                        flappyPhaserGame = () => {
-                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode;
-                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return;
-                        };
-                        setInterval(() => {
-                            flappyPhaserGame().stateNode.state.game.scene.children.list
-                                .filter(a => a.texture?.key == 'pipe')
-                                .map(a => {
-                                    a.scaleY = 0.1;
-                                    a.y = 0;
-                                });
-                        }, 50);
-                },
-
-
         {
             name: 'Toggle Ghost Mode',
             func: () => {
@@ -3061,7 +3004,7 @@ const createMonsterBrawlMenu = () => {
     closeBtn.onclick = () => {
         if (rainbowInterval) clearInterval(rainbowInterval);
         if (allAnswersInterval) clearInterval(allAnswersInterval);
-        if (currentMenu) setInterval(cheat, 50);
+        menu.remove();
     };
     
     menu.appendChild(closeBtn);
@@ -3100,8 +3043,8 @@ const createMonsterBrawlMenu = () => {
     fishingBtn.onclick = createFishingMenu;
     cryptoBtn.onclick = createCryptoMenu;
     monsterBrawlBtn.onclick = createMonsterBrawlMenu;
-    td2Btn.onclick = () => { if (currentMenu) setInterval(cheat, 50); createTD2menu(); };
-    battleRoyaleBtn.onclick = () => { if (currentMenu) setInterval(cheat, 50); createBattleRoyaleMenu(); };
+    td2Btn.onclick = () => { modePopup.remove(); createTD2menu(); };
+    battleRoyaleBtn.onclick = () => { modePopup.remove(); createBattleRoyaleMenu(); };
 
     modePopup.appendChild(fishingBtn);
     modePopup.appendChild(cryptoBtn);
