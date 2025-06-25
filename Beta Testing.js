@@ -3053,3 +3053,6 @@ const createMonsterBrawlMenu = () => {
     modePopup.appendChild(monsterBrawlBtn);
     document.body.appendChild(modePopup);
 })();
+
+
+
