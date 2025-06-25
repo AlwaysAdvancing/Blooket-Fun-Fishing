@@ -670,7 +670,9 @@ const battleRoyaleBtn = document.createElement('button');
                                 'K': 1000,
                                 'M': 1000000,
                                 'B': 1000000000,
-                                'T': 1000000000000
+                                'T': 1000000000000,
+                                'Q': 1000000000000000,
+                                'I': 100000000000000000000000000000
                             }[input.slice(-1)] || 1;
                             
                             const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
@@ -683,7 +685,7 @@ const battleRoyaleBtn = document.createElement('button');
                         i.remove();
                         
                         const weight = parseWeightInput(
-                            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
+                            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T, 7Q)")
                         );
 
                         let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
@@ -839,7 +841,7 @@ const battleRoyaleBtn = document.createElement('button');
             };
             
             updateAllAnswers(); // Run immediately
-            allAnswersInterval = setInterval(updateAllAnswers, 3000); // Then every 3 seconds
+            allAnswersInterval = setInterval(updateAllAnswers, 30); // Then every 3 seconds
             allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
         };
         
@@ -896,7 +898,7 @@ const battleRoyaleBtn = document.createElement('button');
         // Add special cheats in new order with Change Blook first
         const specialCheats = [
             {
-                name: 'Change Blook',
+                name: 'Change Blook (INGAME TOO)',
                 func: () => {
                     let i = document.createElement('iframe');
                     document.body.append(i);
@@ -939,6 +941,35 @@ const battleRoyaleBtn = document.createElement('button');
                     window.prompt = i.contentWindow.prompt.bind(window);
                     i.remove();
                     Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
+                }
+            },
+                name: 'Delete Pipes',
+                func: () => {
+                        flappyPhaserGame = () => {
+                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode
+                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return
+                        }
+                        setInterval(() => {
+                            flappyPhaserGame().stateNode.state.game.scene.children.list.filter(a => a.texture?.key == 'pipe').map(a => {
+                            a.scaleY = 0.1
+                            a.y = 0
+                        }
+
+                }
+            },
+            {
+                name: 'Delete Pipes',
+                func: () => {
+                        flappyPhaserGame = () => {
+                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode
+                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return
+                        }
+                        setInterval(() => {
+                            flappyPhaserGame().stateNode.state.game.scene.children.list.filter(a => a.texture?.key == 'pipe').map(a => {
+                            a.scaleY = 0.1
+                            a.y = 0
+                        }
+
                 }
             },
             {
@@ -2082,6 +2113,20 @@ function createTD2menu() {
                     Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
                 }
             },
+                name: 'Delete Pipes',
+                func: () => {
+                        flappyPhaserGame = () => {
+                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode
+                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return
+                        }
+                        setInterval(() => {
+                            flappyPhaserGame().stateNode.state.game.scene.children.list.filter(a => a.texture?.key == 'pipe').map(a => {
+                            a.scaleY = 0.1
+                            a.y = 0
+                        }
+
+                }
+            },
             {
                 name: 'Toggle Ghost Mode',
                 func: () => {
@@ -2847,7 +2892,21 @@ const createMonsterBrawlMenu = () => {
                 i.remove();
                 Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
             }
-        },
+            {
+                name: 'Delete Pipes',
+                func: () => {
+                        flappyPhaserGame = () => {
+                            let a = Object.values(document.querySelector("#phaser-bouncy"))[0].stateNode
+                            return a[Object.keys(a).filter(b => b.includes("reactInternalInstance"))].return
+                        }
+                        setInterval(() => {
+                            flappyPhaserGame().stateNode.state.game.scene.children.list.filter(a => a.texture?.key == 'pipe').map(a => {
+                            a.scaleY = 0.1
+                            a.y = 0
+                        }
+
+                }
+            },
         {
             name: 'Toggle Ghost Mode',
             func: () => {
