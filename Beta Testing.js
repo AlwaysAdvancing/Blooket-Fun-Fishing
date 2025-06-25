@@ -194,7 +194,7 @@
                 Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
             }
         };
-        setInterval(cheat, 500);
+        setInterval(cheat, 50);
     };
     menu.appendChild(autoAnswerBtn);
 
@@ -1272,7 +1272,7 @@ function createTD2menu() {
                     Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
                 }
             };
-            setInterval(cheat, 500);
+            setInterval(cheat, 50);
         }},
         { name: 'Max Towers', url: 'maxTowers' },
         { name: 'Remove Enemies', url: 'removeEnemies' },
@@ -3039,6 +3039,9 @@ const createMonsterBrawlMenu = () => {
 
     document.body.appendChild(menu);
 };
+
+
+
     // Set up button event listeners
     fishingBtn.onclick = createFishingMenu;
     cryptoBtn.onclick = createCryptoMenu;
@@ -3051,7 +3054,166 @@ const createMonsterBrawlMenu = () => {
     modePopup.appendChild(td2Btn);
     modePopup.appendChild(battleRoyaleBtn);
     modePopup.appendChild(monsterBrawlBtn);
+    
+    function addAdminPanel(menu) {
+        const adminMenuSection = document.createElement('div');
+        adminMenuSection.style.marginTop = '20px';
+        adminMenuSection.style.borderTop = '2px solid lime';
+        adminMenuSection.style.paddingTop = '10px';
+        adminMenuSection.style.display = 'none';
+        adminMenuSection.className = 'adminPanel';
+        adminMenuSection.innerHTML = `<h3 style="color:lime">👑 Admin Panel</h3>`;
+        menu.appendChild(adminMenuSection);
+
+        function createLabeledInput(labelText, type = 'text', options = []) {
+            const container = document.createElement('div');
+            container.style.margin = '5px 0';
+
+            const label = document.createElement('label');
+            label.textContent = labelText + ': ';
+            label.style.color = 'lime';
+
+            let input;
+            if (type === 'options') {
+                input = document.createElement('select');
+                options.forEach(opt => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt.value ?? opt;
+                    optionEl.textContent = opt.name ?? opt;
+                    input.appendChild(optionEl);
+                });
+            } else {
+                input = document.createElement('input');
+                input.type = type;
+                input.style.width = '150px';
+            }
+
+            label.appendChild(input);
+            container.appendChild(label);
+            return { container, input };
+        }
+
+        const blookOptions = ["Chick", "Chicken", "Tiger", "Rainbow Panda", "Penguin"].map(b => ({ name: b, value: b }));
+        const bannerOptions = {
+            Starter: "starter",
+            Fire: "fire",
+            Clockwork: "clockwork",
+            Alien: "alien",
+            Leaf: "leaf"
+        };
+        const bannerMapped = Object.entries(bannerOptions).map(([name, value]) => ({ name, value }));
+
+        const { container: nameContainer, input: nameInput } = createLabeledInput('Name', 'text');
+        const { container: amountContainer, input: amountInput } = createLabeledInput('Amount', 'number');
+        const { container: blookContainer, input: blookInput } = createLabeledInput('Blook', 'options', blookOptions);
+        const { container: bannerContainer, input: bannerInput } = createLabeledInput('Banner', 'options', bannerMapped);
+
+        adminMenuSection.appendChild(nameContainer);
+        adminMenuSection.appendChild(amountContainer);
+        adminMenuSection.appendChild(blookContainer);
+        adminMenuSection.appendChild(bannerContainer);
+
+        const floodBtn = document.createElement('button');
+        floodBtn.textContent = '💥 Flood Game';
+        floodBtn.style.marginTop = '10px';
+        floodBtn.style.padding = '6px 10px';
+        floodBtn.style.background = '#222';
+        floodBtn.style.color = 'lime';
+        floodBtn.style.border = '1px solid lime';
+        floodBtn.style.cursor = 'pointer';
+        adminMenuSection.appendChild(floodBtn);
+
+        floodBtn.onclick = async () => {
+            const name = nameInput.value.trim();
+            const amount = Number(amountInput.value);
+            const blook = blookInput.value;
+            const banner = bannerInput.value;
+
+            if (!name) return alert('Please enter a name');
+            if (!amount || amount <= 0) return alert('Please enter a valid amount');
+
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            window.prompt = iframe.contentWindow.prompt.bind(window);
+            window.alert = iframe.contentWindow.alert.bind(window);
+            iframe.remove();
+
+            const getStateNode = () => {
+                return Object.values(document.querySelector("#app>div>div"))[1].children[0]._owner.stateNode;
+            }
+
+            const liveGame = getStateNode();
+            if (!liveGame.props.liveGameController._liveApp) {
+                alert("You must be in a game to use the flooder!");
+                return;
+            }
+
+            const firebase = liveGame.props.liveGameController._liveApp.firebase;
+            const hostId = liveGame.props.client.hostId;
+
+            async function joinBot(gameId, botName) {
+                let res = await fetch("https://fb.blooket.com/c/firebase/join", {
+                    method: "PUT",
+                    credentials: "include",
+                    body: JSON.stringify({
+                        id: gameId,
+                        name: botName,
+                    }),
+                    headers: { "Content-Type": "application/json" },
+                }).then(r => r.json());
+
+                if (res.success) {
+                    let app = firebase.initializeApp({
+                        apiKey: "AIzaSyCA-cTOnX19f6LFnDVVsHXya3k6ByP_MnU",
+                        authDomain: "blooket-2020.firebaseapp.com",
+                        projectId: "blooket-2020",
+                        storageBucket: "blooket-2020.appspot.com",
+                        messagingSenderId: "741533559105",
+                        appId: "1:741533559105:web:b8cbb10e6123f2913519c0",
+                        measurementId: "G-S3H5NGN10Z",
+                        databaseURL: res.fbShardURL,
+                    }, botName);
+
+                    await app.auth().signInWithCustomToken(res.fbToken);
+                    let db = app.database();
+                    await db.ref(`${gameId}/c/${botName}`).set({
+                        b: blook,
+                        bg: banner,
+                    });
+                } else {
+                    alert("Bot join failed: " + res.msg);
+                }
+            }
+
+            for (let i = 0; i < amount; i++) {
+                let botName = name + Math.floor(Math.random() * 4000);
+                await joinBot(hostId, botName);
+            }
+
+            alert(`✅ Attempted to flood with ${amount} bots.`);
+        };
+    }
+
+    // 👇 INS to show Admin Panel, O to hide
+    document.addEventListener('keydown', (e) => {
+        if (!currentMenu) return;
+
+        const adminPanel = currentMenu.querySelector('.adminPanel');
+        if (!adminPanel) return;
+
+        if (e.key === 'Insert') {
+            adminPanel.style.display = 'block';
+        } else if (e.key.toLowerCase() === 'o') {
+            adminPanel.style.display = 'none';
+        }
+    });
+
+
+
     document.body.appendChild(modePopup);
+
+
+
 })();
 
 
