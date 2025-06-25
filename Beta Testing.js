@@ -1433,7 +1433,7 @@ function createTD2menu() {
     closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
     closeBtn.onclick = () => {
         if (rainbowInterval) clearInterval(rainbowInterval);
-        menu.setIntervalif (currentMenu) setInterval(cheat, 50);
+            if (currentMenu) setInterval(cheat, 50);
     };
     menu.appendChild(closeBtn);
 
@@ -1776,7 +1776,7 @@ function createTD2menu() {
                         let i = document.createElement('iframe');
                         document.body.append(i);
                         window.prompt = i.contentWindow.prompt.bind(window);
- if (currentMenu) setInterval(cheat, 50);
+                        if (currentMenu) setInterval(cheat, 50);
                         let password = prompt("What do you want to set your password to?");
                         let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
                             return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
@@ -3061,7 +3061,7 @@ const createMonsterBrawlMenu = () => {
     closeBtn.onclick = () => {
         if (rainbowInterval) clearInterval(rainbowInterval);
         if (allAnswersInterval) clearInterval(allAnswersInterval);
-        menu.setIntervalif (currentMenu) setInterval(cheat, 50);
+        if (currentMenu) setInterval(cheat, 50);
     };
     
     menu.appendChild(closeBtn);
