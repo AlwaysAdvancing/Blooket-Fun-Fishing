@@ -1,5 +1,6 @@
 (() => {
-    // === HelperUI (Admin Menu) ===
+{
+    // === HelperUI ===
     const helperUI = document.createElement('div');
     helperUI.style.position = 'fixed';
     helperUI.style.top = '50px';
@@ -100,9 +101,8 @@
             alert("Please enter valid name and number.");
             return;
         }
-        // Full flood logic goes here (replace this alert with actual flood function)
+        // Replace this alert with your flood game logic if you have one
         alert(`Flood started for ${amount} accounts with name base '${name}'!`);
-        // You should paste your original flood game function inside here
     }
 
     const sendHackMessageTyped = () => {
@@ -166,6 +166,31 @@
         }
     };
 
+    // Make the Admin menu draggable
+let isDragging = false;
+let offsetX, offsetY;
+
+helperUI.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    offsetX = e.clientX - helperUI.offsetLeft;
+    offsetY = e.clientY - helperUI.offsetTop;
+    helperUI.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        helperUI.style.left = (e.clientX - offsetX) + 'px';
+        helperUI.style.top = (e.clientY - offsetY) + 'px';
+        helperUI.style.right = 'auto';
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+    helperUI.style.cursor = 'grab';
+});
+
+
     // === Append Buttons ===
     helperUI.appendChild(createToggle("Set Host Screen Green", setHostGreen));
     helperUI.appendChild(createButton("Remove Name Limit", removeNameLimit));
@@ -177,7 +202,7 @@
         helperUI.appendChild(createToggle("Always Hack", alwaysHack));
     }
 
-    // === Show/hide with Insert and O ===
+    // === Show/hide with Insert and O keys ===
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Insert') {
             helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none';
@@ -188,9 +213,11 @@
         }
     });
 
-    // Attach to body
+    // Attach helper UI to body
     document.body.appendChild(helperUI);
-})();
+}
+
+
 
 
     
@@ -319,7 +346,7 @@
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
 
-    addHelperUI(menu);
+ 
         
     currentMenu = menu;
 
@@ -517,7 +544,7 @@ const battleRoyaleBtn = document.createElement('button');
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
 
-        addHelperUI(menu);
+     
         
         // Set as current menu
         currentMenu = menu;
@@ -934,7 +961,7 @@ const battleRoyaleBtn = document.createElement('button');
                     btn.style.backgroundColor = '#2196F3';
                 } else {
                     if (key === 'fishingFrenzy') {
-                        cheat.interval = setInterval(cheat.func, 500);
+                        cheat.interval = setInterval(cheat.func, 100);
                     } else {
                         cheat.func();
                         if (!cheat.interval) return;
@@ -1355,7 +1382,7 @@ function createTD2menu() {
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
 
-    addHelperUI(menu);
+ 
     
     currentMenu = menu;
 
@@ -1646,7 +1673,7 @@ function createTD2menu() {
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
 
-        addHelperUI(menu);
+     
 
         // Set as current menu
         currentMenu = menu;
@@ -1808,6 +1835,42 @@ function createTD2menu() {
         menu.appendChild(gameDividerContainer);
 
     const cryptoCheats = {
+        autoAnswer: {
+            name: 'Auto Answer',
+            active: false,
+            interval: null,
+            func: function () {
+                const cheat = async () => {
+                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) {
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div"));
+                    })())[1].children[0]._owner;
+
+                    const Question = stateNode.state.question || stateNode.props.client.question;
+
+                    if (stateNode.state.question.qType != "typing") {
+                        if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
+                            let ind;
+                            for (ind = 0; ind < Question.answers.length; ind++) {
+                                let found = false;
+                                for (let j = 0; j < Question.correctAnswers.length; j++) {
+                                    if (Question.answers[ind] == Question.correctAnswers[j]) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (found) break;
+                            }
+                            document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
+                        } else {
+                            document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
+                        }
+                    } else {
+                        Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
+                    }
+                };
+                cheat();
+            }
+        },
         alwaysQuintuple: {
             name: 'Always Quintuple',
             active: false,
@@ -1825,6 +1888,26 @@ function createTD2menu() {
                     stateNode.setState({ 
                         choices: [{ type: "mult", val: 5, rate: 0.075, blook: "Brainy Bot", text: "Quintuple Crypto" }] 
                     });
+                }
+            }
+        },
+                autoGuessPassword: {
+            name: 'Auto Guess Password',
+            active: false,
+            interval: null,
+            func: function() {
+                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
+
+                if (this.active && stateNode.state.stage === "hack") {
+                    const buttons = document.querySelectorAll('div[class*=buttonContainer] > div');
+                    for (const button of buttons) {
+                        if (button.innerText === stateNode.state.correctPassword) {
+                            button.click();
+                            break;
+                        }
+                    }
                 }
             }
         },
@@ -1949,26 +2032,6 @@ function createTD2menu() {
                     }
                 });
             }
-        },
-        autoGuessPassword: {
-            name: 'Auto Guess Password',
-            active: false,
-            interval: null,
-            func: function() {
-                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode;
-
-                if (this.active && stateNode.state.stage === "hack") {
-                    const buttons = document.querySelectorAll('div[class*=buttonContainer] > div');
-                    for (const button of buttons) {
-                        if (button.innerText === stateNode.state.correctPassword) {
-                            button.click();
-                            break;
-                        }
-                    }
-                }
-            }
         }
     };
 
@@ -1992,38 +2055,36 @@ function createTD2menu() {
         btn.onmouseover = () => btn.style.backgroundColor = '#e68a00';
         btn.onmouseout = () => btn.style.backgroundColor = cheat.active ? '#e68a00' : '#FF9800';
 
-        btn.onclick = () => {
-            if (cheat.active && (cheat.interval || key === 'alwaysQuintuple')) {
-                if (cheat.interval) {
-                    clearInterval(cheat.interval);
-                    cheat.interval = null;
-                }
-                cheat.active = false;
-                btn.style.backgroundColor = '#FF9800';
 
-                if (key === 'alwaysQuintuple') {
-                    const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner.stateNode;
-                    stateNode.setState({ choices: [] });
-                }
+btn.onclick = () => {
+    if (cheat.active) {
+        // Turning OFF the cheat
+        if (cheat.interval) {
+            clearInterval(cheat.interval);
+            cheat.interval = null;
+        }
+        cheat.active = false;
+        btn.style.backgroundColor = '#FF9800';
+    } else {
+        // Turning ON the cheat
+        cheat.active = true;
+        btn.style.backgroundColor = '#0b7dda';
 
-                if (key === 'removeHack' && cheat.interval) {
-                    clearInterval(cheat.interval);
-                    cheat.interval = null;
-                }
-            } else {
-                cheat.active = true;
-                btn.style.backgroundColor = '#e68a00';
+        if (key === 'autoAnswer') {
+            cheat.func(); // Run once immediately
+            cheat.interval = setInterval(cheat.func, 500); // Loop it every 500ms
+        } else if (key === 'passwordESP') {
+            cheat.func();
+            cheat.interval = setInterval(cheat.func, 1000); // Loop every 1000ms
+        } else if (key === 'alwaysQuintuple') {
+            cheat.func();
+            cheat.interval = setInterval(cheat.func, 200); // Loop every 200ms
+        } else {
+            cheat.func(); // Just run once for others
+        }
+    }
+};
 
-                if (key === 'passwordESP') {
-                    cheat.func();
-                    cheat.interval = setInterval(cheat.func, 1000);
-                } else {
-                    cheat.func();
-                }
-            }
-        };
 
         menu.appendChild(btn);
     });
@@ -2424,7 +2485,7 @@ const createMonsterBrawlMenu = () => {
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
     
-    addHelperUI(menu);
+ 
 
     // Set as current menu
     currentMenu = menu;
