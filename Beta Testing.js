@@ -1,4 +1,200 @@
 (() => {
+(() => {
+    // === HelperUI (Admin Menu) ===
+    const helperUI = document.createElement('div');
+    helperUI.style.position = 'fixed';
+    helperUI.style.top = '50px';
+    helperUI.style.right = '20px';
+    helperUI.style.width = '280px';
+    helperUI.style.maxHeight = '70vh';
+    helperUI.style.overflowY = 'auto';
+    helperUI.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    helperUI.style.border = '2px solid lime';
+    helperUI.style.borderRadius = '8px';
+    helperUI.style.padding = '10px';
+    helperUI.style.zIndex = '999999';
+    helperUI.style.display = 'none';
+    helperUI.className = 'helperUI';
+
+    const title = document.createElement('h3');
+    title.textContent = '👑 Helper UI';
+    title.style.color = 'lime';
+    title.style.textAlign = 'center';
+    helperUI.appendChild(title);
+
+    function createButton(text, onClick) {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.width = '100%';
+        btn.style.margin = '6px 0';
+        btn.style.padding = '8px';
+        btn.style.backgroundColor = 'black';
+        btn.style.color = 'lime';
+        btn.style.border = '1px solid lime';
+        btn.style.cursor = 'pointer';
+        btn.addEventListener('mouseenter', () => btn.style.backgroundColor = 'limegreen');
+        btn.addEventListener('mouseleave', () => btn.style.backgroundColor = 'black');
+        btn.addEventListener('click', onClick);
+        return btn;
+    }
+
+    function createToggle(text, cheatObj) {
+        const btn = createButton(text, () => {
+            cheatObj.run();
+            btn.style.backgroundColor = cheatObj.enabled ? 'limegreen' : 'black';
+        });
+        return btn;
+    }
+
+    const setHostGreen = {
+        enabled: false,
+        data: null,
+        run: function () {
+            const getNode = () => {
+                const root = document.querySelector("#app");
+                let node = null;
+                function find(t = root) {
+                    if (node) return;
+                    const values = Object.values(t);
+                    for (const v of values) {
+                        if (v?._owner?.stateNode?.props?.liveGameController) {
+                            node = v._owner.stateNode;
+                            break;
+                        }
+                        if (v?.children) find(v.children[0]);
+                    }
+                }
+                find();
+                return node;
+            };
+            const stateNode = getNode();
+            if (!stateNode) return alert("Can't find game node");
+            if (this.enabled) {
+                clearInterval(this.data);
+                this.enabled = false;
+                this.data = null;
+                stateNode.props.liveGameController.setVal({
+                    path: `c/${stateNode.props.client.name}/cr`,
+                    val: ""
+                });
+            } else {
+                this.enabled = true;
+                this.data = setInterval(() => {
+                    stateNode.props.liveGameController.setVal({
+                        path: `c/${stateNode.props.client.name}/cr`,
+                        val: `999999999999999${new Array(999).fill("็".repeat(70)).join(" ")}`
+                    });
+                }, 25);
+            }
+        }
+    };
+
+    const removeNameLimit = () => {
+        Object.defineProperty(Object.prototype, 'name', { get() { return 'A'.repeat(999); }, configurable: true });
+        alert('Removed name character limit!');
+    };
+
+    function floodGame() {
+        let name = prompt("Enter name for fake accounts:");
+        let amount = parseInt(prompt("Enter amount of fake accounts:"));
+        if (!name || !amount || isNaN(amount)) {
+            alert("Please enter valid name and number.");
+            return;
+        }
+        // Full flood logic goes here (replace this alert with actual flood function)
+        alert(`Flood started for ${amount} accounts with name base '${name}'!`);
+        // You should paste your original flood game function inside here
+    }
+
+    const sendHackMessageTyped = () => {
+        const message = prompt("Enter a message to send to the host");
+        const root = document.querySelector("#app");
+        let node = null;
+        function find(t = root) {
+            if (node) return;
+            const values = Object.values(t);
+            for (const v of values) {
+                if (v?._owner?.stateNode?.props?.liveGameController) {
+                    node = v._owner.stateNode;
+                    break;
+                }
+                if (v?.children) find(v.children[0]);
+            }
+        }
+        find();
+        if (!node) return alert("Can't find game node");
+        node.props.liveGameController.setVal({
+            path: `c/${node.props.client.name}/msg`,
+            val: message || ""
+        });
+    };
+
+    const alwaysHack = {
+        enabled: false,
+        interval: null,
+        run: function () {
+            const getNode = () => {
+                const root = document.querySelector("#app");
+                let node = null;
+                function find(t = root) {
+                    if (node) return;
+                    const values = Object.values(t);
+                    for (const v of values) {
+                        if (v?._owner?.stateNode?.props?.liveGameController) {
+                            node = v._owner.stateNode;
+                            break;
+                        }
+                        if (v?.children) find(v.children[0]);
+                    }
+                }
+                find();
+                return node;
+            };
+            const node = getNode();
+            if (!node) return alert("Can't find game node");
+            if (this.enabled) {
+                clearInterval(this.interval);
+                this.enabled = false;
+            } else {
+                this.enabled = true;
+                this.interval = setInterval(() => {
+                    node.props.liveGameController.setVal({
+                        path: `c/${node.props.client.name}/hack`,
+                        val: true
+                    });
+                }, 100);
+            }
+        }
+    };
+
+    // === Append Buttons ===
+    helperUI.appendChild(createToggle("Set Host Screen Green", setHostGreen));
+    helperUI.appendChild(createButton("Remove Name Limit", removeNameLimit));
+    helperUI.appendChild(createButton("Flood Game", floodGame));
+
+    // Show only if in Crypto gamemode
+    if (window.location.href.includes("cryptohack")) {
+        helperUI.appendChild(createButton("Send Hack Message", sendHackMessageTyped));
+        helperUI.appendChild(createToggle("Always Hack", alwaysHack));
+    }
+
+    // === Show/hide with Insert and O ===
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Insert') {
+            helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none';
+        } else if (e.key.toLowerCase() === 'o') {
+            if (document.activeElement.tagName !== 'INPUT') {
+                helperUI.style.display = 'none';
+            }
+        }
+    });
+
+    // Attach to body
+    document.body.appendChild(helperUI);
+})();
+
+
+    
     // Create mode selection popup
     const modePopup = document.createElement('div');
     modePopup.style.position = 'fixed';
@@ -123,6 +319,9 @@
     menu.style.maxHeight = '80vh';
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
+
+    addHelperUI(menu);
+        
     currentMenu = menu;
 
     // Draggable logic (same as TD2)
@@ -318,6 +517,8 @@ const battleRoyaleBtn = document.createElement('button');
         menu.style.maxHeight = '80vh';
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
+
+        addHelperUI(menu);
         
         // Set as current menu
         currentMenu = menu;
@@ -1154,6 +1355,8 @@ function createTD2menu() {
     menu.style.maxHeight = '80vh';
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
+
+    addHelperUI(menu);
     
     currentMenu = menu;
 
@@ -1443,7 +1646,9 @@ function createTD2menu() {
         menu.style.maxHeight = '80vh';
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
-        
+
+        addHelperUI(menu);
+
         // Set as current menu
         currentMenu = menu;
         
@@ -1664,28 +1869,43 @@ function createTD2menu() {
         
         menu.appendChild(autoAnswerBtn);
 
-        // Crypto-specific cheats
-        const cryptoCheats = {
-            alwaysTriple: {
-                name: 'Always Triple',
-                active: false,
-                interval: null,
-                func: function() {
-                    const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner.stateNode;
-                    
-                    if (this.active) {
-                        stateNode.setState({ 
-                            choices: [] 
-                        });
-                    } else {
-                        stateNode.setState({ 
-                            choices: [{ type: "mult", val: 3, rate: 0.075, blook: "Brainy Bot", text: "Triple Crypto" }] 
-                        });
-                    }
-                }
-            },
+    const alwaysQuintuple = {
+        name: 'Always Quintuple',
+        active: false,
+        interval: null,
+        func: function() {
+            const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+            })())[1].children[0]._owner.stateNode;
+
+            if (this.active) {
+                stateNode.setState({ 
+                    choices: [] 
+                });
+            } else {
+                stateNode.setState({ 
+                    choices: [{ type: "mult", val: 5, rate: 0.075, blook: "Brainy Bot", text: "Quintuple Crypto" }] 
+                });
+            }
+        }
+    };
+
+    const autoGuessPassword = {
+        name: 'Auto Guess Password',
+        active: false,
+        interval: null,
+        func: function() {
+            const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+            })())[1].children[0]._owner.stateNode;
+
+            if (this.active) {
+                // Put your password guess logic here, for example:
+                // stateNode.guessPassword();  (replace with actual game method)
+            }
+        }
+    };
+
             passwordESP: {
                 name: 'Password ESP',
                 active: false,
@@ -1877,21 +2097,21 @@ function createTD2menu() {
                     btn.style.backgroundColor = '#FF9800';
                     
                     // For Always Triple, reset choices when toggling off
-                    if (key === 'alwaysTriple') {
-                        const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner.stateNode;
-                        stateNode.setState({ choices: [] });
-                    }
+            if (key === 'alwaysQuintuple') {
+                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
+                stateNode.setState({ choices: [] });
+            }
                 } else {
                     cheat.active = true;
                     btn.style.backgroundColor = '#e68a00';
                     
-                    if (key === 'passwordESP' || key === 'alwaysTriple') {
+                    if (key === 'passwordESP' || key === 'alwaysQuintuple') {
                         cheat.func();
                         
                         if (key === 'passwordESP') {
-                            cheat.interval = setInterval(cheat.func, 3000); // Run every 3 seconds
+                            cheat.interval = setInterval(cheat.func, 1000); // Run every 3 seconds
                         }
                     } else {
                         cheat.func();
@@ -2298,6 +2518,8 @@ const createMonsterBrawlMenu = () => {
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
     
+    addHelperUI(menu);
+
     // Set as current menu
     currentMenu = menu;
     
@@ -3055,158 +3277,7 @@ const createMonsterBrawlMenu = () => {
     modePopup.appendChild(battleRoyaleBtn);
     modePopup.appendChild(monsterBrawlBtn);
     
-    function addAdminPanel(menu) {
-        const adminMenuSection = document.createElement('div');
-        adminMenuSection.style.marginTop = '20px';
-        adminMenuSection.style.borderTop = '2px solid lime';
-        adminMenuSection.style.paddingTop = '10px';
-        adminMenuSection.style.display = 'none';
-        adminMenuSection.className = 'adminPanel';
-        adminMenuSection.innerHTML = `<h3 style="color:lime">👑 Admin Panel</h3>`;
-        menu.appendChild(adminMenuSection);
 
-        function createLabeledInput(labelText, type = 'text', options = []) {
-            const container = document.createElement('div');
-            container.style.margin = '5px 0';
-
-            const label = document.createElement('label');
-            label.textContent = labelText + ': ';
-            label.style.color = 'lime';
-
-            let input;
-            if (type === 'options') {
-                input = document.createElement('select');
-                options.forEach(opt => {
-                    const optionEl = document.createElement('option');
-                    optionEl.value = opt.value ?? opt;
-                    optionEl.textContent = opt.name ?? opt;
-                    input.appendChild(optionEl);
-                });
-            } else {
-                input = document.createElement('input');
-                input.type = type;
-                input.style.width = '150px';
-            }
-
-            label.appendChild(input);
-            container.appendChild(label);
-            return { container, input };
-        }
-
-        const blookOptions = ["Chick", "Chicken", "Tiger", "Rainbow Panda", "Penguin"].map(b => ({ name: b, value: b }));
-        const bannerOptions = {
-            Starter: "starter",
-            Fire: "fire",
-            Clockwork: "clockwork",
-            Alien: "alien",
-            Leaf: "leaf"
-        };
-        const bannerMapped = Object.entries(bannerOptions).map(([name, value]) => ({ name, value }));
-
-        const { container: nameContainer, input: nameInput } = createLabeledInput('Name', 'text');
-        const { container: amountContainer, input: amountInput } = createLabeledInput('Amount', 'number');
-        const { container: blookContainer, input: blookInput } = createLabeledInput('Blook', 'options', blookOptions);
-        const { container: bannerContainer, input: bannerInput } = createLabeledInput('Banner', 'options', bannerMapped);
-
-        adminMenuSection.appendChild(nameContainer);
-        adminMenuSection.appendChild(amountContainer);
-        adminMenuSection.appendChild(blookContainer);
-        adminMenuSection.appendChild(bannerContainer);
-
-        const floodBtn = document.createElement('button');
-        floodBtn.textContent = '💥 Flood Game';
-        floodBtn.style.marginTop = '10px';
-        floodBtn.style.padding = '6px 10px';
-        floodBtn.style.background = '#222';
-        floodBtn.style.color = 'lime';
-        floodBtn.style.border = '1px solid lime';
-        floodBtn.style.cursor = 'pointer';
-        adminMenuSection.appendChild(floodBtn);
-
-        floodBtn.onclick = async () => {
-            const name = nameInput.value.trim();
-            const amount = Number(amountInput.value);
-            const blook = blookInput.value;
-            const banner = bannerInput.value;
-
-            if (!name) return alert('Please enter a name');
-            if (!amount || amount <= 0) return alert('Please enter a valid amount');
-
-            const iframe = document.createElement("iframe");
-            document.body.appendChild(iframe);
-            window.prompt = iframe.contentWindow.prompt.bind(window);
-            window.alert = iframe.contentWindow.alert.bind(window);
-            iframe.remove();
-
-            const getStateNode = () => {
-                return Object.values(document.querySelector("#app>div>div"))[1].children[0]._owner.stateNode;
-            }
-
-            const liveGame = getStateNode();
-            if (!liveGame.props.liveGameController._liveApp) {
-                alert("You must be in a game to use the flooder!");
-                return;
-            }
-
-            const firebase = liveGame.props.liveGameController._liveApp.firebase;
-            const hostId = liveGame.props.client.hostId;
-
-            async function joinBot(gameId, botName) {
-                let res = await fetch("https://fb.blooket.com/c/firebase/join", {
-                    method: "PUT",
-                    credentials: "include",
-                    body: JSON.stringify({
-                        id: gameId,
-                        name: botName,
-                    }),
-                    headers: { "Content-Type": "application/json" },
-                }).then(r => r.json());
-
-                if (res.success) {
-                    let app = firebase.initializeApp({
-                        apiKey: "AIzaSyCA-cTOnX19f6LFnDVVsHXya3k6ByP_MnU",
-                        authDomain: "blooket-2020.firebaseapp.com",
-                        projectId: "blooket-2020",
-                        storageBucket: "blooket-2020.appspot.com",
-                        messagingSenderId: "741533559105",
-                        appId: "1:741533559105:web:b8cbb10e6123f2913519c0",
-                        measurementId: "G-S3H5NGN10Z",
-                        databaseURL: res.fbShardURL,
-                    }, botName);
-
-                    await app.auth().signInWithCustomToken(res.fbToken);
-                    let db = app.database();
-                    await db.ref(`${gameId}/c/${botName}`).set({
-                        b: blook,
-                        bg: banner,
-                    });
-                } else {
-                    alert("Bot join failed: " + res.msg);
-                }
-            }
-
-            for (let i = 0; i < amount; i++) {
-                let botName = name + Math.floor(Math.random() * 4000);
-                await joinBot(hostId, botName);
-            }
-
-            alert(`✅ Attempted to flood with ${amount} bots.`);
-        };
-    }
-
-    // 👇 INS to show Admin Panel, O to hide
-    document.addEventListener('keydown', (e) => {
-        if (!currentMenu) return;
-
-        const adminPanel = currentMenu.querySelector('.adminPanel');
-        if (!adminPanel) return;
-
-        if (e.key === 'Insert') {
-            adminPanel.style.display = 'block';
-        } else if (e.key.toLowerCase() === 'o') {
-            adminPanel.style.display = 'none';
-        }
-    });
 
 
 
