@@ -1,4 +1,265 @@
 (() => {
+{
+    // === HelperUI ===
+    const helperUI = document.createElement('div');
+    helperUI.style.position = 'fixed';
+    helperUI.style.top = '50px';
+    helperUI.style.right = '20px';
+    helperUI.style.width = '280px';
+    helperUI.style.maxHeight = '70vh';
+    helperUI.style.overflowY = 'auto';
+    helperUI.style.backgroundColor = 'rgba(0,0,0,0.85)';
+    helperUI.style.border = '2px solid lime';
+    helperUI.style.borderRadius = '8px';
+    helperUI.style.padding = '10px';
+    helperUI.style.zIndex = '999999';
+    helperUI.style.display = 'none';
+    helperUI.className = 'helperUI';
+
+    const title = document.createElement('h3');
+    title.textContent = '👑 Helper UI';
+    title.style.color = 'lime';
+    title.style.textAlign = 'center';
+    helperUI.appendChild(title);
+
+    function createButton(text, onClick) {
+        const btn = document.createElement('button');
+        btn.textContent = text;
+        btn.style.width = '100%';
+        btn.style.margin = '6px 0';
+        btn.style.padding = '8px';
+        btn.style.backgroundColor = 'black';
+        btn.style.color = 'lime';
+        btn.style.border = '1px solid lime';
+        btn.style.cursor = 'pointer';
+        btn.addEventListener('mouseenter', () => btn.style.backgroundColor = 'limegreen');
+        btn.addEventListener('mouseleave', () => btn.style.backgroundColor = 'black');
+        btn.addEventListener('click', onClick);
+        return btn;
+    }
+
+    function createToggle(text, cheatObj) {
+        const btn = createButton(text, () => {
+            cheatObj.run();
+            btn.style.backgroundColor = cheatObj.enabled ? 'limegreen' : 'black';
+        });
+        return btn;
+    }
+
+    const setHostGreen = {
+        enabled: false,
+        data: null,
+        run: function () {
+            const getNode = () => {
+                const root = document.querySelector("#app");
+                let node = null;
+                function find(t = root) {
+                    if (node) return;
+                    const values = Object.values(t);
+                    for (const v of values) {
+                        if (v?._owner?.stateNode?.props?.liveGameController) {
+                            node = v._owner.stateNode;
+                            break;
+                        }
+                        if (v?.children) find(v.children[0]);
+                    }
+                }
+                find();
+                return node;
+            };
+            const stateNode = getNode();
+            if (!stateNode) return alert("Can't find game node");
+            if (this.enabled) {
+                clearInterval(this.data);
+                this.enabled = false;
+                this.data = null;
+                stateNode.props.liveGameController.setVal({
+                    path: `c/${stateNode.props.client.name}/cr`,
+                    val: ""
+                });
+            } else {
+                this.enabled = true;
+                this.data = setInterval(() => {
+                    stateNode.props.liveGameController.setVal({
+                        path: `c/${stateNode.props.client.name}/cr`,
+                        val: `999999999999999${new Array(999).fill("็".repeat(70)).join(" ")}`
+                    });
+                }, 25);
+            }
+        }
+    };
+
+    const removeNameLimit = () => {
+        Object.defineProperty(Object.prototype, 'name', { get() { return 'A'.repeat(999); }, configurable: true });
+        alert('Removed name character limit!');
+    };
+
+function floodGame() {
+    const baseName = prompt("Enter name for fake accounts:");
+    const amount = parseInt(prompt("Enter amount of fake accounts:"));
+    
+    if (!baseName || !amount || isNaN(amount) || amount < 1) {
+        alert("Please enter a valid name and number greater than zero.");
+        return;
+    }
+    
+    const root = document.querySelector("#app");
+    let node = null;
+    
+    function findNode(t = root) {
+        if (node) return;
+        const values = Object.values(t);
+        for (const v of values) {
+            if (v?._owner?.stateNode?.props?.liveGameController) {
+                node = v._owner.stateNode;
+                break;
+            }
+            if (v?.children) findNode(v.children[0]);
+        }
+    }
+    findNode();
+    
+    if (!node) {
+        alert("Unable to find the game controller node.");
+        return;
+    }
+    
+    alert(`Flood started for ${amount} accounts with base name '${baseName}'.`);
+    
+    // Flood: simulate fake account joins with small delay so it doesn't freeze
+    let count = 1;
+    const floodInterval = setInterval(() => {
+        if (count > amount) {
+            clearInterval(floodInterval);
+            alert(`Flood complete: ${amount} fake accounts joined.`);
+            return;
+        }
+        const fakeName = `${baseName}${count}`;
+        node.props.liveGameController.setVal({
+            path: `c/${fakeName}/join`,
+            val: true
+        });
+        count++;
+    }, 100);  // 100ms delay between each join to reduce overload
+}
+
+
+    const sendHackMessageTyped = () => {
+        const message = prompt("Enter a message to send to the host");
+        const root = document.querySelector("#app");
+        let node = null;
+        function find(t = root) {
+            if (node) return;
+            const values = Object.values(t);
+            for (const v of values) {
+                if (v?._owner?.stateNode?.props?.liveGameController) {
+                    node = v._owner.stateNode;
+                    break;
+                }
+                if (v?.children) find(v.children[0]);
+            }
+        }
+        find();
+        if (!node) return alert("Can't find game node");
+        node.props.liveGameController.setVal({
+            path: `c/${node.props.client.name}/msg`,
+            val: message || ""
+        });
+    };
+
+    const alwaysHack = {
+        enabled: false,
+        interval: null,
+        run: function () {
+            const getNode = () => {
+                const root = document.querySelector("#app");
+                let node = null;
+                function find(t = root) {
+                    if (node) return;
+                    const values = Object.values(t);
+                    for (const v of values) {
+                        if (v?._owner?.stateNode?.props?.liveGameController) {
+                            node = v._owner.stateNode;
+                            break;
+                        }
+                        if (v?.children) find(v.children[0]);
+                    }
+                }
+                find();
+                return node;
+            };
+            const node = getNode();
+            if (!node) return alert("Can't find game node");
+            if (this.enabled) {
+                clearInterval(this.interval);
+                this.enabled = false;
+            } else {
+                this.enabled = true;
+                this.interval = setInterval(() => {
+                    node.props.liveGameController.setVal({
+                        path: `c/${node.props.client.name}/hack`,
+                        val: true
+                    });
+                }, 100);
+            }
+        }
+    };
+
+    // Make the Admin menu draggable
+let isDragging = false;
+let offsetX, offsetY;
+
+helperUI.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    offsetX = e.clientX - helperUI.offsetLeft;
+    offsetY = e.clientY - helperUI.offsetTop;
+    helperUI.style.cursor = 'grabbing';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+        helperUI.style.left = (e.clientX - offsetX) + 'px';
+        helperUI.style.top = (e.clientY - offsetY) + 'px';
+        helperUI.style.right = 'auto';
+    }
+});
+
+document.addEventListener('mouseup', () => {
+    isDragging = false;
+    helperUI.style.cursor = 'grab';
+});
+
+
+    // === Append Buttons ===
+    helperUI.appendChild(createToggle("Set Host Screen Green", setHostGreen));
+    helperUI.appendChild(createButton("Remove Name Limit", removeNameLimit));
+    helperUI.appendChild(createButton("Flood Game", floodGame));
+
+    // Show only if in Crypto gamemode
+    if (window.location.href.includes("cryptohack")) {
+        helperUI.appendChild(createButton("Send Hack Message", sendHackMessageTyped));
+        helperUI.appendChild(createToggle("Always Hack", alwaysHack));
+    }
+
+    // === Show/hide with Insert and O keys ===
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Insert') {
+            helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none';
+        } else if (e.key.toLowerCase() === 'o') {
+            if (document.activeElement.tagName !== 'INPUT') {
+                helperUI.style.display = 'none';
+            }
+        }
+    });
+
+    // Attach helper UI to body
+    document.body.appendChild(helperUI);
+}
+
+
+
+
+    
     // Create mode selection popup
     const modePopup = document.createElement('div');
     modePopup.style.position = 'fixed';
@@ -123,6 +384,9 @@
     menu.style.maxHeight = '80vh';
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
+
+ 
+        
     currentMenu = menu;
 
     // Draggable logic (same as TD2)
@@ -194,7 +458,7 @@
                 Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
             }
         };
-        setInterval(cheat, 500);
+        setInterval(cheat, 50);
     };
     menu.appendChild(autoAnswerBtn);
 
@@ -318,6 +582,8 @@ const battleRoyaleBtn = document.createElement('button');
         menu.style.maxHeight = '80vh';
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
+
+     
         
         // Set as current menu
         currentMenu = menu;
@@ -734,7 +1000,7 @@ const battleRoyaleBtn = document.createElement('button');
                     btn.style.backgroundColor = '#2196F3';
                 } else {
                     if (key === 'fishingFrenzy') {
-                        cheat.interval = setInterval(cheat.func, 500);
+                        cheat.interval = setInterval(cheat.func, 100);
                     } else {
                         cheat.func();
                         if (!cheat.interval) return;
@@ -1154,6 +1420,8 @@ function createTD2menu() {
     menu.style.maxHeight = '80vh';
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
+
+ 
     
     currentMenu = menu;
 
@@ -1272,7 +1540,7 @@ function createTD2menu() {
                     Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
                 }
             };
-            setInterval(cheat, 500);
+            setInterval(cheat, 50);
         }},
         { name: 'Max Towers', url: 'maxTowers' },
         { name: 'Remove Enemies', url: 'removeEnemies' },
@@ -1443,7 +1711,9 @@ function createTD2menu() {
         menu.style.maxHeight = '80vh';
         menu.style.display = 'flex';
         menu.style.flexDirection = 'column';
-        
+
+     
+
         // Set as current menu
         currentMenu = menu;
         
@@ -1603,304 +1873,260 @@ function createTD2menu() {
         
         menu.appendChild(gameDividerContainer);
 
-        // Auto Answer cheat
-        const autoAnswerCheat = {
+    const cryptoCheats = {
+        autoAnswer: {
             name: 'Auto Answer',
             active: false,
             interval: null,
-            func: () => {
-                const cheat = (async () => {
-                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
+            func: function () {
+                const cheat = async () => {
+                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) {
+                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div"));
+                    })())[1].children[0]._owner;
+
                     const Question = stateNode.state.question || stateNode.props.client.question;
+
                     if (stateNode.state.question.qType != "typing") {
                         if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
                             let ind;
                             for (ind = 0; ind < Question.answers.length; ind++) {
                                 let found = false;
-                                for (let j = 0; j < Question.correctAnswers.length; j++)
+                                for (let j = 0; j < Question.correctAnswers.length; j++) {
                                     if (Question.answers[ind] == Question.correctAnswers[j]) {
                                         found = true;
                                         break;
                                     }
+                                }
                                 if (found) break;
                             }
                             document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                        } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-                    } else Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-                });
+                        } else {
+                            document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
+                        }
+                    } else {
+                        Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
+                    }
+                };
                 cheat();
             }
-        };
+        },
+        alwaysQuintuple: {
+            name: 'Always Quintuple',
+            active: false,
+            interval: null,
+            func: function() {
+                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
 
-        // Create Auto Answer button
-        const autoAnswerBtn = document.createElement('button');
-        autoAnswerBtn.textContent = autoAnswerCheat.name;
-        autoAnswerBtn.style.display = 'block';
-        autoAnswerBtn.style.width = '100%';
-        autoAnswerBtn.style.padding = '8px';
-        autoAnswerBtn.style.margin = '5px 0';
-        autoAnswerBtn.style.borderRadius = '5px';
-        autoAnswerBtn.style.border = 'none';
-        autoAnswerBtn.style.cursor = 'pointer';
-        autoAnswerBtn.style.backgroundColor = '#FF9800';
-        autoAnswerBtn.style.color = 'white';
-        autoAnswerBtn.style.fontWeight = 'bold';
-        autoAnswerBtn.style.transition = 'all 0.3s';
-        
-        autoAnswerBtn.onmouseover = () => autoAnswerBtn.style.backgroundColor = '#e68a00';
-        autoAnswerBtn.onmouseout = () => autoAnswerBtn.style.backgroundColor = autoAnswerCheat.active ? '#e68a00' : '#FF9800';
-        
-        autoAnswerBtn.onclick = () => {
-            if (autoAnswerCheat.active && autoAnswerCheat.interval) {
-                clearInterval(autoAnswerCheat.interval);
-                autoAnswerCheat.active = false;
-                autoAnswerBtn.style.backgroundColor = '#FF9800';
-            } else {
-                autoAnswerCheat.interval = setInterval(autoAnswerCheat.func, 500);
-                autoAnswerCheat.active = true;
-                autoAnswerBtn.style.backgroundColor = '#e68a00';
+                if (this.active) {
+                    stateNode.setState({ 
+                        choices: [] 
+                    });
+                } else {
+                    stateNode.setState({ 
+                        choices: [{ type: "mult", val: 5, rate: 0.075, blook: "Brainy Bot", text: "Quintuple Crypto" }] 
+                    });
+                }
             }
-        };
-        
-        menu.appendChild(autoAnswerBtn);
+        },
+                autoGuessPassword: {
+            name: 'Auto Guess Password',
+            active: false,
+            interval: null,
+            func: function() {
+                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
 
-        // Crypto-specific cheats
-        const cryptoCheats = {
-            alwaysTriple: {
-                name: 'Always Triple',
-                active: false,
-                interval: null,
-                func: function() {
-                    const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                if (this.active && stateNode.state.stage === "hack") {
+                    const buttons = document.querySelectorAll('div[class*=buttonContainer] > div');
+                    for (const button of buttons) {
+                        if (button.innerText === stateNode.state.correctPassword) {
+                            button.click();
+                            break;
+                        }
+                    }
+                }
+            }
+        },
+        passwordESP: {
+            name: 'Password ESP',
+            active: false,
+            interval: null,
+            func: function() {
+                const highlightPasswords = () => {
+                    let { state } = Object.values((function react(r = document.querySelector("body>div")) { 
                         return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
                     })())[1].children[0]._owner.stateNode;
                     
-                    if (this.active) {
-                        stateNode.setState({ 
-                            choices: [] 
-                        });
-                    } else {
-                        stateNode.setState({ 
-                            choices: [{ type: "mult", val: 3, rate: 0.075, blook: "Brainy Bot", text: "Triple Crypto" }] 
-                        });
-                    }
-                }
-            },
-            passwordESP: {
-                name: 'Password ESP',
-                active: false,
-                interval: null,
-                func: function() {
-                    const highlightPasswords = () => {
-                        let { state } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner.stateNode;
-                        
-                        if (state.stage == "hack") {
-                            const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
-                            if (buttons) {
-                                for (const button of buttons) {
-                                    if (button.innerText == state.correctPassword) {
-                                        button.style.outlineColor = "rgba(64, 255, 64, 0.8)";
-                                        button.style.backgroundColor = "rgba(64, 255, 64, 0.8)";
-                                        button.style.textShadow = "0 0 1px #3f3";
-                                    } else {
-                                        button.style.outlineColor = "rgba(255, 64, 64, 0.8)";
-                                        button.style.backgroundColor = "rgba(255, 64, 64, 0.8)";
-                                        button.style.textShadow = "0 0 1px #f33";
-                                    }
-                                }
-                            }
-                        }
-                    };
-                    
-                    if (this.active) {
-                        highlightPasswords(); // Run once immediately
-                        this.interval = setInterval(highlightPasswords, 3000); // Then every 3 seconds
-                    } else {
-                        clearInterval(this.interval);
-                        this.interval = null;
-                        // Reset button styles when turned off
+                    if (state.stage == "hack") {
                         const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
                         if (buttons) {
                             for (const button of buttons) {
-                                button.style.outlineColor = "";
-                                button.style.backgroundColor = "";
-                                button.style.textShadow = "";
+                                if (button.innerText == state.correctPassword) {
+                                    button.style.outlineColor = "rgba(64, 255, 64, 0.8)";
+                                    button.style.backgroundColor = "rgba(64, 255, 64, 0.8)";
+                                    button.style.textShadow = "0 0 1px #3f3";
+                                } else {
+                                    button.style.outlineColor = "rgba(255, 64, 64, 0.8)";
+                                    button.style.backgroundColor = "rgba(255, 64, 64, 0.8)";
+                                    button.style.textShadow = "0 0 1px #f33";
+                                }
                             }
                         }
                     }
-                }
-            },
-            setPassword: {
-                name: 'Set Password',
-                active: false,
-                func: () => {
-                    let iframe = document.querySelector("iframe");
-                    if (!iframe) {
-                        iframe = document.createElement("iframe");
-                        iframe.style.display = "none";
-                        document.body.append(iframe);
-                    }
-
-                    if (window.fetch.call.toString() == 'function call() { [native code] }') {
-                        const call = window.fetch.call;
-                        window.fetch.call = function () {
-                            if (!arguments[1].includes("s.blooket.com/rc")) return call.apply(this, arguments);
-                        }
-                    }
-                    const cheat = (async () => {
-                        let i = document.createElement('iframe');
-                        document.body.append(i);
-                        window.prompt = i.contentWindow.prompt.bind(window);
-                        i.remove();
-                        let password = prompt("What do you want to set your password to?");
-                        let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner;
-                        stateNode.setState({ password });
-                        stateNode.props.liveGameController.setVal({
-                            path: `c/${stateNode.props.client.name}/p`,
-                            val: password
-                        });
-                    });
-                    cheat();
-                }
-            },
-            removeHack: {
-                name: 'Remove Hack',
-                active: false,
-                func: () => {
+                };
+                highlightPasswords();
+                this.interval = setInterval(highlightPasswords, 1000);
+            }
+        },
+        removeHack: {
+            name: 'Remove Hack',
+            active: false,
+            interval: null,
+            func: function() {
+                const removeHackAction = () => {
                     Object.values((function react(r = document.querySelector("body>div")) { 
                         return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
                     })())[1].children[0]._owner.stateNode.setState({ hack: "" });
-                }
-            },
-            setCrypto: {
-                name: 'Set Crypto',
-                active: false,
-                func: () => {
-                    const parseCryptoInput = (input) => {
-                        input = (input || "0").trim().toUpperCase();
-                        const multiplier = {
-                            'K': 1000,
-                            'M': 1000000,
-                            'B': 1000000000,
-                            'T': 1000000000000
-                        }[input.slice(-1)] || 1;
-                        
-                        const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
-                        return Math.round(numberPart * multiplier);
-                    };
-
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    
-                    const amount = parseCryptoInput(
-                        prompt("How much crypto would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
-                    );
-                    
-                    let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner;
-                    stateNode.setState({ crypto: amount, crypto2: amount });
-                    stateNode.props.liveGameController.setVal({
-                        path: `c/${stateNode.props.client.name}/cr`,
-                        val: amount
-                    });
-                }
-            },
-            stealCrypto: {
-                name: 'Steal Crypto',
-                active: false,
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    let target = prompt("Who's crypto would you like to steal?");
-                    let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner;
-                    stateNode.props.liveGameController.getDatabaseVal("c", (players) => {
-                        let player;
-                        if (players && (player = Object.entries(players).find((x) => x[0].toLowerCase() == target.toLowerCase()))) {
-                            const cr = player[1].cr;
-                            stateNode.setState({
-                                crypto: stateNode.state.crypto + cr,
-                                crypto2: stateNode.state.crypto + cr
-                            });
-                            stateNode.props.liveGameController.setVal({
-                                path: "c/" + stateNode.props.client.name,
-                                val: {
-                                    b: stateNode.props.client.blook,
-                                    p: stateNode.state.password,
-                                    cr: stateNode.state.crypto + cr,
-                                    tat: player[0] + ":" + cr
-                                }
-                            });
-                        }
-                    });
-                }
-            }
-        };
-
-        // Create buttons for each crypto cheat
-        Object.keys(cryptoCheats).forEach(key => {
-            const cheat = cryptoCheats[key];
-            const btn = document.createElement('button');
-            btn.textContent = cheat.name;
-            btn.style.display = 'block';
-            btn.style.width = '100%';
-            btn.style.padding = '8px';
-            btn.style.margin = '5px 0';
-            btn.style.borderRadius = '5px';
-            btn.style.border = 'none';
-            btn.style.cursor = 'pointer';
-            btn.style.backgroundColor = '#FF9800';
-            btn.style.color = 'white';
-            btn.style.fontWeight = 'bold';
-            btn.style.transition = 'all 0.3s';
-            
-            btn.onmouseover = () => btn.style.backgroundColor = '#e68a00';
-            btn.onmouseout = () => btn.style.backgroundColor = cheat.active ? '#e68a00' : '#FF9800';
-            
-            btn.onclick = () => {
-                if (cheat.active && (cheat.interval || key === 'alwaysTriple')) {
-                    if (cheat.interval) {
-                        clearInterval(cheat.interval);
-                        cheat.interval = null;
-                    }
-                    cheat.active = false;
-                    btn.style.backgroundColor = '#FF9800';
-                    
-                    // For Always Triple, reset choices when toggling off
-                    if (key === 'alwaysTriple') {
-                        const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner.stateNode;
-                        stateNode.setState({ choices: [] });
+                };
+                if (this.active) {
+                    if (!this.interval) {
+                        this.interval = setInterval(removeHackAction, 500);
                     }
                 } else {
-                    cheat.active = true;
-                    btn.style.backgroundColor = '#e68a00';
-                    
-                    if (key === 'passwordESP' || key === 'alwaysTriple') {
-                        cheat.func();
-                        
-                        if (key === 'passwordESP') {
-                            cheat.interval = setInterval(cheat.func, 3000); // Run every 3 seconds
-                        }
-                    } else {
-                        cheat.func();
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                        this.interval = null;
                     }
                 }
-            };
-            
-            menu.appendChild(btn);
-        });
+            }
+        },
+        setCrypto: {
+            name: 'Set Crypto',
+            active: false,
+            func: () => {
+                const parseCryptoInput = (input) => {
+                    input = (input || "0").trim().toUpperCase();
+                    const multiplier = {
+                        'K': 1000,
+                        'M': 1000000,
+                        'B': 1000000000,
+                        'T': 1000000000000
+                    }[input.slice(-1)] || 1;
+
+                    const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
+                    return Math.round(numberPart * multiplier);
+                };
+
+                let i = document.createElement('iframe');
+                document.body.append(i);
+                window.prompt = i.contentWindow.prompt.bind(window);
+                i.remove();
+
+                const amount = parseCryptoInput(
+                    prompt("How much crypto would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
+                );
+
+                let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner;
+                stateNode.setState({ crypto: amount, crypto2: amount });
+                stateNode.props.liveGameController.setVal({
+                    path: `c/${stateNode.props.client.name}/cr`,
+                    val: amount
+                });
+            }
+        },
+        stealCrypto: {
+            name: 'Steal Crypto',
+            active: false,
+            func: () => {
+                let i = document.createElement('iframe');
+                document.body.append(i);
+                window.prompt = i.contentWindow.prompt.bind(window);
+                i.remove();
+                let target = prompt("Who's crypto would you like to steal?");
+                let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner;
+                stateNode.props.liveGameController.getDatabaseVal("c", (players) => {
+                    let player;
+                    if (players && (player = Object.entries(players).find((x) => x[0].toLowerCase() == target.toLowerCase()))) {
+                        const cr = player[1].cr;
+                        stateNode.setState({
+                            crypto: stateNode.state.crypto + cr,
+                            crypto2: stateNode.state.crypto + cr
+                        });
+                        stateNode.props.liveGameController.setVal({
+                            path: "c/" + stateNode.props.client.name,
+                            val: {
+                                b: stateNode.props.client.blook,
+                                p: stateNode.state.password,
+                                cr: stateNode.state.crypto + cr,
+                                tat: player[0] + ":" + cr
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    };
+
+    // Create buttons for each crypto cheat
+    Object.keys(cryptoCheats).forEach(key => {
+        const cheat = cryptoCheats[key];
+        const btn = document.createElement('button');
+        btn.textContent = cheat.name;
+        btn.style.display = 'block';
+        btn.style.width = '100%';
+        btn.style.padding = '8px';
+        btn.style.margin = '5px 0';
+        btn.style.borderRadius = '5px';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.backgroundColor = '#FF9800';
+        btn.style.color = 'white';
+        btn.style.fontWeight = 'bold';
+        btn.style.transition = 'all 0.3s';
+
+        btn.onmouseover = () => btn.style.backgroundColor = '#e68a00';
+        btn.onmouseout = () => btn.style.backgroundColor = cheat.active ? '#e68a00' : '#FF9800';
+
+
+btn.onclick = () => {
+    if (cheat.active) {
+        // Turning OFF the cheat
+        if (cheat.interval) {
+            clearInterval(cheat.interval);
+            cheat.interval = null;
+        }
+        cheat.active = false;
+        btn.style.backgroundColor = '#FF9800';
+    } else {
+        // Turning ON the cheat
+        cheat.active = true;
+        btn.style.backgroundColor = '#0b7dda';
+
+        if (key === 'autoAnswer') {
+            cheat.func(); // Run once immediately
+            cheat.interval = setInterval(cheat.func, 500); // Loop it every 500ms
+        } else if (key === 'passwordESP') {
+            cheat.func();
+            cheat.interval = setInterval(cheat.func, 1000); // Loop every 1000ms
+        } else if (key === 'alwaysQuintuple') {
+            cheat.func();
+            cheat.interval = setInterval(cheat.func, 200); // Loop every 200ms
+        } else {
+            cheat.func(); // Just run once for others
+        }
+    }
+};
+
+
+        menu.appendChild(btn);
+    });
 
         // Add "Other" divider
         const otherDividerContainer = document.createElement('div');
@@ -2298,6 +2524,8 @@ const createMonsterBrawlMenu = () => {
     menu.style.display = 'flex';
     menu.style.flexDirection = 'column';
     
+ 
+
     // Set as current menu
     currentMenu = menu;
     
@@ -2746,7 +2974,7 @@ const createMonsterBrawlMenu = () => {
         };
         
         updateAllAnswers(); // Run immediately
-        allAnswersInterval = setInterval(updateAllAnswers, 3000); // Then every 3 seconds
+        allAnswersInterval = setInterval(updateAllAnswers, 1500); // Then every 1.5 seconds
         allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
     };
     
@@ -3038,7 +3266,10 @@ const createMonsterBrawlMenu = () => {
     });
 
     document.body.appendChild(menu);
-};
+}
+
+
+
     // Set up button event listeners
     fishingBtn.onclick = createFishingMenu;
     cryptoBtn.onclick = createCryptoMenu;
@@ -3051,9 +3282,13 @@ const createMonsterBrawlMenu = () => {
     modePopup.appendChild(td2Btn);
     modePopup.appendChild(battleRoyaleBtn);
     modePopup.appendChild(monsterBrawlBtn);
+    
+
+
+
+
     document.body.appendChild(modePopup);
+
+
+
 })();
-
-
-
-
