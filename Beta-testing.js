@@ -94,16 +94,55 @@
         alert('Removed name character limit!');
     };
 
-    function floodGame() {
-        let name = prompt("Enter name for fake accounts:");
-        let amount = parseInt(prompt("Enter amount of fake accounts:"));
-        if (!name || !amount || isNaN(amount)) {
-            alert("Please enter valid name and number.");
+function floodGame() {
+    const baseName = prompt("Enter name for fake accounts:");
+    const amount = parseInt(prompt("Enter amount of fake accounts:"));
+    
+    if (!baseName || !amount || isNaN(amount) || amount < 1) {
+        alert("Please enter a valid name and number greater than zero.");
+        return;
+    }
+    
+    const root = document.querySelector("#app");
+    let node = null;
+    
+    function findNode(t = root) {
+        if (node) return;
+        const values = Object.values(t);
+        for (const v of values) {
+            if (v?._owner?.stateNode?.props?.liveGameController) {
+                node = v._owner.stateNode;
+                break;
+            }
+            if (v?.children) findNode(v.children[0]);
+        }
+    }
+    findNode();
+    
+    if (!node) {
+        alert("Unable to find the game controller node.");
+        return;
+    }
+    
+    alert(`Flood started for ${amount} accounts with base name '${baseName}'.`);
+    
+    // Flood: simulate fake account joins with small delay so it doesn't freeze
+    let count = 1;
+    const floodInterval = setInterval(() => {
+        if (count > amount) {
+            clearInterval(floodInterval);
+            alert(`Flood complete: ${amount} fake accounts joined.`);
             return;
         }
-        // Replace this alert with your flood game logic if you have one
-        alert(`Flood started for ${amount} accounts with name base '${name}'!`);
-    }
+        const fakeName = `${baseName}${count}`;
+        node.props.liveGameController.setVal({
+            path: `c/${fakeName}/join`,
+            val: true
+        });
+        count++;
+    }, 100);  // 100ms delay between each join to reduce overload
+}
+
 
     const sendHackMessageTyped = () => {
         const message = prompt("Enter a message to send to the host");
