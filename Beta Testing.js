@@ -1905,87 +1905,38 @@ function createTD2menu() {
         }
     };
 
-            passwordESP: {
-                name: 'Password ESP',
-                active: false,
-                interval: null,
-                func: function() {
-                    const highlightPasswords = () => {
-                        let { state } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner.stateNode;
-                        
-                        if (state.stage == "hack") {
-                            const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
-                            if (buttons) {
-                                for (const button of buttons) {
-                                    if (button.innerText == state.correctPassword) {
-                                        button.style.outlineColor = "rgba(64, 255, 64, 0.8)";
-                                        button.style.backgroundColor = "rgba(64, 255, 64, 0.8)";
-                                        button.style.textShadow = "0 0 1px #3f3";
-                                    } else {
-                                        button.style.outlineColor = "rgba(255, 64, 64, 0.8)";
-                                        button.style.backgroundColor = "rgba(255, 64, 64, 0.8)";
-                                        button.style.textShadow = "0 0 1px #f33";
-                                    }
-                                }
-                            }
-                        }
-                    };
-                    
-                    if (this.active) {
-                        highlightPasswords(); // Run once immediately
-                        this.interval = setInterval(highlightPasswords, 3000); // Then every 3 seconds
-                    } else {
-                        clearInterval(this.interval);
-                        this.interval = null;
-                        // Reset button styles when turned off
-                        const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
-                        if (buttons) {
-                            for (const button of buttons) {
-                                button.style.outlineColor = "";
-                                button.style.backgroundColor = "";
-                                button.style.textShadow = "";
+    const passwordESP = {
+        name: 'Password ESP',
+        active: false,
+        interval: null,
+        func: function() {
+            const highlightPasswords = () => {
+                let { state } = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
+                
+                if (state.stage == "hack") {
+                    const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
+                    if (buttons) {
+                        for (const button of buttons) {
+                            if (button.innerText == state.correctPassword) {
+                                button.style.outlineColor = "rgba(64, 255, 64, 0.8)";
+                                button.style.backgroundColor = "rgba(64, 255, 64, 0.8)";
+                                button.style.textShadow = "0 0 1px #3f3";
+                            } else {
+                                button.style.outlineColor = "rgba(255, 64, 64, 0.8)";
+                                button.style.backgroundColor = "rgba(255, 64, 64, 0.8)";
+                                button.style.textShadow = "0 0 1px #f33";
                             }
                         }
                     }
                 }
-            },
-            setPassword: {
-                name: 'Set Password',
-                active: false,
-                func: () => {
-                    let iframe = document.querySelector("iframe");
-                    if (!iframe) {
-                        iframe = document.createElement("iframe");
-                        iframe.style.display = "none";
-                        document.body.append(iframe);
-                    }
+            };
+            highlightPasswords();
+            this.interval = setInterval(highlightPasswords, 1000);
+        }
+    };
 
-                    if (window.fetch.call.toString() == 'function call() { [native code] }') {
-                        const call = window.fetch.call;
-                        window.fetch.call = function () {
-                            if (!arguments[1].includes("s.blooket.com/rc")) return call.apply(this, arguments);
-                        }
-                    }
-                    const cheat = (async () => {
-                        let i = document.createElement('iframe');
-                        document.body.append(i);
-                        window.prompt = i.contentWindow.prompt.bind(window);
-                        i.remove();
-                        let password = prompt("What do you want to set your password to?");
-                        let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner;
-                        stateNode.setState({ password });
-                        stateNode.props.liveGameController.setVal({
-                            path: `c/${stateNode.props.client.name}/p`,
-                            val: password
-                        });
-                    });
-                    cheat();
-                }
-            },
             removeHack: {
                 name: 'Remove Hack',
                 active: false,
