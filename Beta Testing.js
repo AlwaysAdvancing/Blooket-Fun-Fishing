@@ -1,5 +1,4 @@
 (() => {
-(() => {
     // === HelperUI (Admin Menu) ===
     const helperUI = document.createElement('div');
     helperUI.style.position = 'fixed';
