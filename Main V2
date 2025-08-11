@@ -1,522 +1,115 @@
-(() => {
-  'use strict';
+(function() {
+    'use-strict';
 
-  // ========== Config ==========
-  const VERSION = '2.1.0';
-  const NS = '__BLOOKET_HELPER_UI__'; // global single-instance
-  const BM_URL = "javascript:(()=>{fetch('https://cdn.jsdelivr.net/gh/AlwaysAdvancing/Blooket-Fun-Fishing@main/Main-Menu.js').then(r=>r.text()).then(t=>eval(t));})();";
+    // --- Robust Game State Finder ---
+    function getGameState() { try { const el = document.querySelector("#app"); if (!el) return null; const rk = Object.keys(el).find(k => k.startsWith("__reactContainer$")); if (!rk) return null; let n = el[rk]; while (n) { if (n.stateNode?.props?.liveGameController) return n.stateNode; n = n.child; } return null; } catch (e) { return null; } }
 
-  // If already loaded, reuse or upgrade
-  if (window[NS]) {
-    const inst = window[NS];
-    try {
-      if (inst.version === VERSION) {
-        inst.show();
-        inst.toast('Blooket Helper already open.');
-        inst.maybePromptBookmarklet?.();
-        return;
-      } else {
-        inst.destroy?.({ reason: 'upgrade' });
-      }
-    } catch (e) { console.warn('Helper upgrade:', e); }
-  }
+    // --- Cheats & Toggles ---
+    window.autoCastInterval = null; window.frenzyInterval = null;
+    const cheats = {
+        setLure: (e) => { const gs = getGameState(); if (gs?.state) gs.setState({ lure: parseInt(e.target.value, 10) }); },
+        setWeight: (weight) => { if (!weight || isNaN(weight)) return; const gs = getGameState(); if (gs?.state) { gs.setState({ weight: parseInt(weight, 10) }); const wi = document.getElementById('blooket-gui-weight-input'); if (wi) { wi.style.transition = 'none'; wi.style.backgroundColor = 'var(--gui-accent-green)'; setTimeout(() => { wi.style.transition = 'background-color 0.5s'; wi.style.backgroundColor = 'var(--gui-bg-solid)'; }, 100); } } },
+        startAutoCast: () => { if (window.autoCastInterval) return; window.autoCastInterval = setInterval(() => { const gs = getGameState(); if (gs?.state?.canFish) gs.cast(); }, 1000); },
+        stopAutoCast: () => { clearInterval(window.autoCastInterval); window.autoCastInterval = null; },
+        startFrenzy: () => { if (window.frenzyInterval) return; window.frenzyInterval = setInterval(() => { const gs = getGameState(); if (gs?.state) gs.setState({ isFrenzy: true }); }, 100); },
+        stopFrenzy: () => { clearInterval(window.frenzyInterval); window.frenzyInterval = null; const gs = getGameState(); if (gs?.state) gs.setState({ isFrenzy: false }); },
+        toggleAutoAnswerOn: () => console.log("Auto Answer ON"), toggleAutoAnswerOff: () => console.log("Auto Answer OFF"),
+    };
 
-  // ========== Utilities ==========
-  const $ = (sel, root=document) => root.querySelector(sel);
-  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  const cls = (...n) => n.filter(Boolean).join(' ');
-  const offStack = [];
-  const on = (el, ev, fn, opts) => { el.addEventListener(ev, fn, opts); offStack.push(() => el.removeEventListener(ev, fn, opts)); };
-  const once = (el, ev, fn, opts) => el.addEventListener(ev, fn, { ...opts, once: true });
-  const saveLS = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-  const loadLS = (k, d=null) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } };
-  const debounce = (fn, ms=150) => { let t; return (...a) => (clearTimeout(t), t=setTimeout(()=>fn(...a),ms)); };
-  const castInput = (inp) => inp.type === 'number' ? (isNaN(+inp.value) ? 0 : +inp.value) : inp.value;
+    // --- Settings & Persistence ---
+    const defaultSettings = { colors: { '--gui-accent': '#5865f2', '--gui-accent-green': '#2ecc71', '--gui-bg-solid': '#1e1e1e', '--gui-bg-light-solid': '#2d2d2d', '--gui-border-solid': '#444444', '--gui-text': '#e0e0e0', '--gui-text-dark': '#999999' }, transparency: 0, bgImage: null, toggleKey: 'k', size: { width: '340px', height: 'auto' } };
+    let settings = {};
+    function saveSettings() { localStorage.setItem('blooketGuiSettings', JSON.stringify(settings)); }
+    function hexToRgba(hex, alpha) { const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return `rgba(${r}, ${g}, ${b}, ${alpha})`; }
+    function updateAppearance() { const alpha = 1.0 - (settings.transparency / 100.0); Object.entries(settings.colors).forEach(([k, v]) => gui.style.setProperty(k.replace('-solid', ''), k.endsWith('-solid') ? hexToRgba(v, alpha) : v)); gui.style.setProperty('--gui-bg-solid', settings.colors['--gui-bg-solid']); if (settings.bgImage) { gui.style.backgroundImage = `url(${settings.bgImage})`; } else { gui.style.backgroundImage = 'none'; } }
 
-  // ========== State ==========
-  const state = {
-    version: VERSION,
-    mounted: false,
-    cheatsByMode: new Map(),
-    cheatIndex: new Map(),
-    gamemodes: new Set(['Global']),
-    filterQuery: '',
-    filterMode: 'all',
-    ui: {},
-  };
-
-  // ========== Styles ==========
-  const styles = `
-  .bh-root { position: fixed; inset: 0; pointer-events: none; z-index: 2147483647; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif; }
-  .bh-panel { position: fixed; top: 64px; left: 64px; width: 380px; max-height: 70vh; display: flex; flex-direction: column; pointer-events: auto; background: #0f1117; color: #e5e7eb; border: 1px solid #1f2937; border-radius: 10px; box-shadow: 0 20px 40px rgba(0,0,0,0.4); user-select: none; }
-  .bh-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: linear-gradient(180deg,#111827,#0f1117); border-bottom: 1px solid #1f2937; cursor: grab; }
-  .bh-title { font-weight: 700; font-size: 14px; display:flex; gap:8px; align-items:center; }
-  .bh-title small { opacity: 0.6; font-weight: 500; }
-  .bh-actions { display: flex; gap: 6px; }
-  .bh-iconbtn { width: 26px; height: 26px; display:grid; place-items:center; background:#111827; border:1px solid #1f2937; color:#cbd5e1; border-radius:6px; cursor:pointer; }
-  .bh-iconbtn:hover { background:#141a24; }
-  .bh-body { display:flex; flex-direction: column; gap: 8px; padding: 10px; }
-  .bh-toolbar { display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center; }
-  .bh-search { padding: 8px 10px; background:#0b1220; border:1px solid #1f2937; color:#e5e7eb; border-radius:8px; outline:none; }
-  .bh-select { padding: 8px 10px; background:#0b1220; border:1px solid #1f2937; color:#e5e7eb; border-radius:8px; outline:none; }
-  .bh-chipbar { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
-  .bh-chip { padding:4px 8px; border:1px solid #1f2937; border-radius:999px; background:#0b1220; cursor:pointer; font-size:12px; }
-  .bh-chip.active { background:#1d4ed8; border-color:#1e40af; color:white; }
-  .bh-list { overflow:auto; min-height: 140px; max-height: calc(70vh - 170px); padding-right: 2px; }
-  .bh-section { border-top: 1px dashed #1f2937; margin-top:6px; padding-top:6px; }
-  .bh-section h4 { margin: 6px 2px 8px; font-size: 12px; font-weight: 700; opacity:.8; text-transform: uppercase; letter-spacing:.04em; }
-  .bh-item { display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center; padding:8px 10px; border:1px solid #1f2937; background:#0b1220; border-radius:8px; margin-bottom:8px; }
-  .bh-item .meta { min-width:0; }
-  .bh-item .name { font-weight: 600; font-size: 13px; }
-  .bh-item .desc { font-size: 12px; opacity: .7; margin-top: 4px; }
-  .bh-controls { display:flex; gap:6px; align-items:center; }
-  .bh-btn { padding: 6px 10px; background:#1d4ed8; border:1px solid #1e40af; color:white; border-radius:6px; font-weight:600; cursor:pointer; }
-  .bh-btn.secondary { background:#111827; border-color:#1f2937; color:#cbd5e1; }
-  .bh-btn.warn { background:#b91c1c; border-color:#7f1d1d; }
-  .bh-input { padding:6px 8px; width: 110px; background:#0b1220; border:1px solid #1f2937; color:#e5e7eb; border-radius:6px; outline:none; }
-  .bh-switch { position: relative; width: 40px; height: 22px; }
-  .bh-switch input { display:none; }
-  .bh-switch label { position:absolute; inset:0; background:#1f2937; border:1px solid #253047; border-radius:999px; cursor:pointer; transition:.15s; }
-  .bh-switch label::after { content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:50%; background:#cbd5e1; transition:.15s; }
-  .bh-switch input:checked + label { background:#2563eb; border-color:#1e40af; }
-  .bh-switch input:checked + label::after { transform: translateX(18px); background:white; }
-  .bh-footer { display:flex; justify-content:space-between; align-items:center; gap:8px; padding: 8px 10px; border-top:1px solid #1f2937; background:#0f1117; }
-  .bh-note { font-size:12px; opacity:.7; }
-  .bh-toast { position: fixed; bottom: 16px; right: 16px; background:#111827; color:#e5e7eb; border:1px solid #1f2937; border-radius:8px; padding:10px 12px; box-shadow:0 8px 24px rgba(0,0,0,.3); pointer-events:none; opacity:0; transform:translateY(8px); transition:.18s; }
-  .bh-toast.show { opacity:1; transform:translateY(0); }
-  .bh-hidden { display:none !important; }
-  .bh-confirm { position: fixed; inset: 0; display:none; place-items:center; background: rgba(0,0,0,.45); z-index: 2147483647; }
-  .bh-confirm .box { width: 360px; background:#0f1117; border:1px solid #1f2937; border-radius:10px; padding:14px; }
-  .bh-confirm h3 { margin:0 0 8px 0; }
-  .bh-confirm .row { display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
-  `;
-
-  // ========== DOM Mount ==========
-  function mountUI() {
-    if (state.mounted) return;
-
-    // CSS
-    const styleTag = document.createElement('style');
-    styleTag.id = 'bh-style';
-    styleTag.textContent = styles;
-    document.documentElement.appendChild(styleTag);
-
-    // Root
-    const root = document.createElement('div');
-    root.className = 'bh-root';
-    root.id = 'bh-root';
-    root.innerHTML = `
-      <div class="bh-panel" id="bh-panel" role="dialog" aria-label="Blooket Helper">
-        <div class="bh-header" id="bh-drag">
-          <div class="bh-title">Blooket Helper <small>v${VERSION}</small></div>
-          <div class="bh-actions">
-            <button class="bh-iconbtn" id="bh-min" title="Minimize">—</button>
-            <button class="bh-iconbtn" id="bh-close" title="Close">✕</button>
-          </div>
-        </div>
-        <div class="bh-body">
-          <div class="bh-toolbar">
-            <input class="bh-search" id="bh-search" placeholder="Search cheats…" autocomplete="off"/>
-            <select class="bh-select" id="bh-mode">
-              <option value="all">All modes</option>
-            </select>
-          </div>
-          <div class="bh-chipbar" id="bh-chips"></div>
-          <div class="bh-list" id="bh-list" tabindex="0" role="list"></div>
-        </div>
-        <div class="bh-footer">
-          <button class="bh-btn secondary" id="bh-bookmarklet">Copy Bookmarklet</button>
-          <div class="bh-note" id="bh-note">Single‑instance; safe to run multiple times.</div>
-        </div>
-      </div>
-      <div class="bh-toast" id="bh-toast" role="status" aria-live="polite"></div>
-      <div class="bh-confirm" id="bh-confirm">
-        <div class="box">
-          <h3 id="bh-confirm-title">Confirm</h3>
-          <p id="bh-confirm-text">Are you sure?</p>
-          <div class="row">
-            <button class="bh-btn secondary" id="bh-cancel">Cancel</button>
-            <button class="bh-btn warn" id="bh-ok">Confirm</button>
-          </div>
-        </div>
-      </div>
+    // --- GUI STYLES (Scoped to prevent conflicts) ---
+    const styles = `
+        #blooket-hack-gui { position: fixed; top: 50px; left: 50px; min-width: 320px; max-width: 90vw; min-height: 400px; max-height: 90vh; border-radius: 8px; box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5); z-index: 10001; display: flex; resize: both; overflow: hidden; background-size: cover; background-position: center; }
+        #blooket-hack-gui #gui-panel { width: 100%; height: 100%; display: flex; flex-direction: column; background-color: var(--gui-bg); border: 1px solid var(--gui-border); border-radius: 8px; overflow: hidden; font-family: 'Inter', 'Roboto', 'Arial', sans-serif; color: var(--gui-text); }
+        #blooket-hack-gui #gui-header, #blooket-hack-gui #gui-tab-bar { flex-shrink: 0; background-color: var(--gui-bg-light); border-bottom: 1px solid var(--gui-border); }
+        #blooket-hack-gui #gui-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 15px; cursor: move; font-weight: 600; }
+        #blooket-hack-gui #gui-close-btn { cursor: pointer; font-size: 20px; line-height: 1; }
+        #blooket-hack-gui #gui-tab-bar { display: flex; flex-wrap: wrap; padding: 10px 15px; gap: 8px; }
+        #blooket-hack-gui .gui-tab-btn { background-color: var(--gui-bg); border: 1px solid var(--gui-border); color: var(--gui-text-dark); padding: 5px 12px; border-radius: 15px; cursor: pointer; font-size: 0.9em; transition: all 0.2s; }
+        #blooket-hack-gui .gui-tab-btn.active { background-color: var(--gui-accent); border-color: var(--gui-accent); color: white; font-weight: 600; }
+        #blooket-hack-gui #gui-content-area { padding: 15px; overflow-y: auto; flex-grow: 1; min-height: 0; }
+        #blooket-hack-gui .cheat-section { display: flex; flex-direction: column; gap: 10px; }
+        #blooket-hack-gui .cheat-section h2 { font-size: 0.8em; text-transform: uppercase; color: var(--gui-text-dark); margin: 0; padding-bottom: 5px; }
+        #blooket-hack-gui .cheat-card { background-color: var(--gui-bg-light); border: 1px solid var(--gui-border); border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
+        #blooket-hack-gui .cheat-card-action { display: flex; align-items: center; gap: 8px; }
+        #blooket-hack-gui .cheat-card-action button, #blooket-hack-gui .cheat-card-action select, #blooket-hack-gui .cheat-card-action label { background-color: var(--gui-accent); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+        #blooket-hack-gui .gui-input-box { background-color: var(--gui-bg-solid); border: 1px solid var(--gui-border); color: var(--gui-text); border-radius: 5px; padding: 8px; font-size: 0.9em; width: 70px; text-align: center; }
+        #blooket-hack-gui input[type="color"] { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 44px; height: 28px; background-color: transparent; border: none; border-radius: 5px; cursor: pointer; }
+        #blooket-hack-gui input[type="color"]::-webkit-color-swatch { border-radius: 4px; border: 1px solid var(--gui-border); }
     `;
-    document.body.appendChild(root);
+    const styleSheet = document.createElement("style"); styleSheet.innerText = styles; document.head.appendChild(styleSheet);
 
-    // Restore position
-    const panel = $('#bh-panel', root);
-    const pos = loadLS('bh.pos', { x: 64, y: 64 });
-    panel.style.left = pos.x + 'px';
-    panel.style.top = pos.y + 'px';
+    // --- GUI HTML & Initialization ---
+    const gui = document.createElement('div'); gui.id = 'blooket-hack-gui'; gui.innerHTML = `<div id="gui-panel"><div id="gui-header"><span>Blooket Cheats</span><span id="gui-close-btn">&times;</span></div><div id="gui-tab-bar"></div><div id="gui-content-area"></div></div>`; document.body.appendChild(gui);
+    const tabBar = gui.querySelector('#gui-tab-bar'), contentArea = gui.querySelector('#gui-content-area');
+    settings = { ...defaultSettings, ...JSON.parse(localStorage.getItem('blooketGuiSettings')) };
+    gui.style.width = settings.size.width; gui.style.height = settings.size.height;
+    updateAppearance();
 
-    // Dragging
-    const dragEl = $('#bh-drag', root);
-    let dragging = false, startX=0, startY=0, baseX=pos.x, baseY=pos.y;
-    const onDown = (e) => {
-      if (e.target.closest('button,input,select')) return;
-      dragging = true; dragEl.style.cursor = 'grabbing';
-      startX = e.clientX; startY = e.clientY;
-      baseX = parseFloat(panel.style.left) || 64;
-      baseY = parseFloat(panel.style.top) || 64;
-      dragEl.setPointerCapture?.(e.pointerId);
-    };
-    const onMove = (e) => {
-      if (!dragging) return;
-      const x = baseX + (e.clientX - startX);
-      const y = baseY + (e.clientY - startY);
-      panel.style.left = Math.max(8, Math.min(window.innerWidth - 200, x)) + 'px';
-      panel.style.top = Math.max(8, Math.min(window.innerHeight - 60, y)) + 'px';
-    };
-    const onUp = () => {
-      if (!dragging) return;
-      dragging = false; dragEl.style.cursor = 'grab';
-      saveLS('bh.pos', { x: parseFloat(panel.style.left), y: parseFloat(panel.style.top) });
-    };
-    on(dragEl, 'pointerdown', onDown);
-    on(window, 'pointermove', onMove);
-    on(window, 'pointerup', onUp);
+    // --- HELPER FUNCTIONS ---
+    function createCheatSection(gamemode, title) { const s = document.createElement('div'); s.className = 'cheat-section'; s.dataset.gamemode = gamemode; s.innerHTML = `<h2>${title}</h2>`; contentArea.appendChild(s); return s; }
+    function createCheat(section, title, actionElement) { const c = document.createElement('div'); c.className = 'cheat-card'; c.innerHTML = `<div class="cheat-card-info">${title}</div>`; const a = document.createElement('div'); a.className = 'cheat-card-action'; a.appendChild(actionElement); c.appendChild(a); section.appendChild(c); }
+    function createToggle(title, onAction, offAction) { const b = document.createElement('button'); b.textContent = title; b.isToggled = false; b.addEventListener('click', () => { b.isToggled = !b.isToggled; if (b.isToggled) { b.textContent = `${title} (ON)`; b.style.backgroundColor = 'var(--gui-accent-green)'; onAction(); } else { b.textContent = title; b.style.backgroundColor = 'var(--gui-accent)'; offAction(); } }); return b; }
+    function createColorPicker(section, label, varName) { const i = document.createElement('input'); i.type = 'color'; i.dataset.var = varName; i.value = settings.colors[varName]; i.oninput = (e) => { settings.colors[varName] = e.target.value; updateAppearance(); saveSettings(); }; createCheat(section, label, i); }
+    function shadeColor(c, p) { let f = parseInt(c.slice(1), 16), t = p < 0 ? 0 : 255, R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x0000FF; return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1); }
 
-    // Controls
-    const search = $('#bh-search', root);
-    const modeSel = $('#bh-mode', root);
-    const list = $('#bh-list', root);
-    const chips = $('#bh-chips', root);
-    const btnMin = $('#bh-min', root);
-    const btnClose = $('#bh-close', root);
-    const btnBM = $('#bh-bookmarklet', root);
-    const toast = $('#bh-toast', root);
-    const note = $('#bh-note', root);
+    // --- POPULATE THE GUI ---
+    const fishingSection = createCheatSection('fishing', 'Fishing Frenzy'), globalSection = createCheatSection('global', 'Global'), cryptoSection = createCheatSection('crypto', 'Crypto Hack'), towerSection = createCheatSection('tower', 'Tower Defense'), brawlSection = createCheatSection('monster', 'Monster Brawl'), settingsSection = createCheatSection('settings', 'Settings');
+    createCheat(fishingSection, 'Fishing Frenzy Multiplier', createToggle('Frenzy Event', cheats.startFrenzy, cheats.stopFrenzy)); createCheat(fishingSection, 'Auto-Cast', createToggle('Auto-Cast', cheats.startAutoCast, cheats.stopAutoCast));
+    const rodLevelDropdown = document.createElement('select'); for (let i = 0; i < 5; i++) rodLevelDropdown.add(new Option(`Level ${i + 1}`, i)); rodLevelDropdown.onchange = cheats.setLure; createCheat(fishingSection, 'Set Lure/Rod', rodLevelDropdown);
+    const weightActionContainer = document.createElement('div'); const weightInput = Object.assign(document.createElement('input'), { id: 'blooket-gui-weight-input', className: 'gui-input-box', type: 'number', placeholder: 'e.g. 500' }); weightInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); cheats.setWeight(e.target.value); } }; weightActionContainer.append(weightInput, Object.assign(document.createElement('span'), { textContent: 'lbs' })); createCheat(fishingSection, 'Set Weight', weightActionContainer);
+    createCheat(globalSection, 'Auto Answer', createToggle('Auto Answer', cheats.toggleAutoAnswerOn, cheats.toggleAutoAnswerOff));
+    cryptoSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Crypto Hack will go here.</p>`; towerSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Tower Defense 2 will go here.</p>`; brawlSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Monster Brawl will go here.</p>`;
+    // --- SETTINGS CONTENT ---
+    const masterPicker = document.createElement('input'); masterPicker.type = 'color'; masterPicker.value = settings.colors['--gui-accent']; masterPicker.oninput = (e) => { const base = e.target.value; settings.colors = { ...settings.colors, '--gui-accent': base, '--gui-accent-green': shadeColor(base, 0.4).replace(base.slice(1, 3), '2e'), '--gui-bg-solid': shadeColor(base, -0.9), '--gui-bg-light-solid': shadeColor(base, -0.8), '--gui-border-solid': shadeColor(base, -0.7) }; updateAppearance(); saveSettings(); document.querySelectorAll('#blooket-hack-gui input[type="color"]').forEach(p => p.value = settings.colors[p.dataset.var]); };
+    createCheat(settingsSection, 'Master Theme Color', masterPicker);
+    createColorPicker(settingsSection, 'Toggle ON Color', '--gui-accent-green'); createColorPicker(settingsSection, 'Button / Toggle OFF Color', '--gui-accent'); createColorPicker(settingsSection, 'Main BG Solid Color', '--gui-bg-solid'); createColorPicker(settingsSection, 'Header/Card Solid Color', '--gui-bg-light-solid');
+    const transparencyContainer = document.createElement('div'); transparencyContainer.style.display = 'flex'; transparencyContainer.style.alignItems = 'center'; transparencyContainer.style.gap = '10px'; const slider = document.createElement('input'); slider.type = 'range'; slider.min = 0; slider.max = 80; slider.step = 1; slider.value = settings.transparency; slider.style.flexGrow = '1'; const percentLabel = document.createElement('span'); percentLabel.style.minWidth = '40px'; percentLabel.textContent = `${slider.value}%`; slider.oninput = () => { settings.transparency = parseInt(slider.value); percentLabel.textContent = `${slider.value}%`; updateAppearance(); saveSettings(); }; transparencyContainer.append(slider, percentLabel); createCheat(settingsSection, 'UI Transparency', transparencyContainer);
+    const bgActionContainer = document.createElement('div'); const bgFileInput = document.createElement('input'); bgFileInput.type = 'file'; bgFileInput.accept = 'image/*'; bgFileInput.style.display = 'none'; bgFileInput.id = 'gui-bg-upload'; const bgSelectLabel = document.createElement('label'); bgSelectLabel.id = 'gui-bg-select-label'; bgSelectLabel.htmlFor = 'gui-bg-upload'; bgSelectLabel.textContent = 'Select Image'; const bgRemoveBtn = document.createElement('button'); bgRemoveBtn.textContent = 'Remove'; bgRemoveBtn.style.backgroundColor = '#6c757d'; bgActionContainer.append(bgSelectLabel, bgRemoveBtn);
+    bgFileInput.onchange = (e) => { const file = e.target.files[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { alert("Image too large! Max 5MB."); return; } const reader = new FileReader(); reader.onload = (event) => { settings.bgImage = event.target.result; slider.value = 50; slider.dispatchEvent(new Event('input')); }; reader.readAsDataURL(file); };
+    bgRemoveBtn.onclick = () => { settings.bgImage = null; slider.value = 0; slider.dispatchEvent(new Event('input')); }; settingsSection.appendChild(bgFileInput); createCheat(settingsSection, 'Custom Background', bgActionContainer);
+    const keybindButton = document.createElement('button'); keybindButton.id = 'gui-keybind-btn'; const displayKey = (settings.toggleKey === ' ') ? 'Space' : settings.toggleKey.toUpperCase(); keybindButton.textContent = `Keybind: ${displayKey}`; keybindButton.onclick = () => { keybindButton.textContent = 'Press any key...'; const keydownHandler = (e) => { e.preventDefault(); settings.toggleKey = e.key; const newDisplayKey = (e.key === ' ') ? 'Space' : e.key.toUpperCase(); keybindButton.textContent = `Keybind: ${newDisplayKey}`; saveSettings(); document.removeEventListener('keydown', keydownHandler, { capture: true }); }; document.addEventListener('keydown', keydownHandler, { capture: true, once: true }); }; createCheat(settingsSection, 'Show/Hide Key', keybindButton);
+    const resetButton = document.createElement('button'); resetButton.textContent = 'Reset All Settings'; resetButton.style.backgroundColor = '#dc3545';
+    resetButton.onclick = () => { if (confirm("Are you sure you want to reset all main GUI settings to default?")) { settings = JSON.parse(JSON.stringify(defaultSettings)); updateAppearance(); saveSettings(); document.querySelectorAll('#blooket-hack-gui input[type="color"]').forEach(p => p.value = settings.colors[p.dataset.var]); slider.value = settings.transparency; percentLabel.textContent = `${settings.transparency}%`; keybindButton.textContent = `Keybind: ${settings.toggleKey.toUpperCase()}`; gui.style.width = defaultSettings.size.width; gui.style.height = defaultSettings.size.height; } };
+    createCheat(settingsSection, 'Reset All', resetButton);
 
-    on(btnMin, 'click', () => panel.classList.toggle('bh-hidden'));
-    on(btnClose, 'click', () => api.hide());
-    on(btnBM, 'click', copyBookmarklet);
+    // --- Admin Panel Module ---
+    function initializeAdminPanel() {
+        const helperUI = document.createElement('div');
+        helperUI.className = 'helperUI';
+        helperUI.style.cssText = 'position: fixed; top: 50px; right: 20px; width: 280px; max-height: 70vh; overflow-y: auto; background-color: rgba(0,0,0,0.85); border: 2px solid lime; border-radius: 8px; padding: 10px; z-index: 999998; display: none;';
+        helperUI.innerHTML = `<h3 style="color: lime; text-align: center; margin-top:0;">👑 Admin Panel</h3>`;
+        const floodContainer = document.createElement('div');
+        floodContainer.style.cssText = 'margin-top: 15px; border-top: 1px solid lime; padding-top: 10px;';
+        floodContainer.innerHTML = `<h4 style="color: lime; text-align: center; margin: 0 0 10px 0;">Game Flooder</h4>`;
+        const nameInput = Object.assign(document.createElement('input'), { placeholder: 'Bot Name', style: 'width: 100%; box-sizing: border-box; margin-bottom: 5px; background: #111; color: lime; border: 1px solid lime; padding: 5px;' });
+        const amountInput = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'Amount', style: 'width: 100%; box-sizing: border-box; margin-bottom: 5px; background: #111; color: lime; border: 1px solid lime; padding: 5px;' });
+        const startButton = Object.assign(document.createElement('button'), { textContent: 'Start Flood', style: 'width: 100%; margin: 6px 0; padding: 8px; background-color: black; color: lime; border: 1px solid lime; cursor: pointer;', onclick: () => { const baseName = nameInput.value; const amount = parseInt(amountInput.value); if (!baseName || !amount || isNaN(amount) || amount < 1) return alert("Invalid input."); const gs = getGameState(); if (!gs) return alert("Could not find game controller."); alert(`Flooding with ${amount} bots...`); let count = 0; const interval = setInterval(() => { if (++count > amount) return clearInterval(interval); gs.props.liveGameController.setVal({ path: `c/${baseName}${count}/`, val: { b: "Blook", w: 0 } }); }, 100); }, onmouseenter: (e) => e.target.style.backgroundColor = 'limegreen', onmouseleave: (e) => e.target.style.backgroundColor = 'black' });
+        floodContainer.append(nameInput, amountInput, startButton);
+        helperUI.appendChild(floodContainer);
+        document.body.appendChild(helperUI);
 
-    on(search, 'input', debounce(() => { state.filterQuery = search.value.trim().toLowerCase(); render(); }, 120));
-    on(modeSel, 'change', () => { state.filterMode = modeSel.value; highlightChip(state.filterMode); render(); });
-
-    state.ui = { root, panel, search, modeSel, list, chips, toast, note };
-
-    rebuildModeControls();
-
-    // Footer quick instructions
-    note.innerHTML = 'Opera GX: right‑click bookmarks bar → Add site → paste code into URL.';
-
-    state.mounted = true;
-    render();
-  }
-
-  function rebuildModeControls() {
-    const { modeSel, chips } = state.ui;
-    modeSel.innerHTML = '<option value="all">All modes</option>' + Array.from(state.gamemodes).sort().map(m => `<option value="${m}">${m}</option>`).join('');
-    chips.innerHTML = '';
-    chips.appendChild(mkChip('all'));
-    for (const m of Array.from(state.gamemodes).sort()) chips.appendChild(mkChip(m));
-    highlightChip(state.filterMode);
-  }
-  function mkChip(mode) {
-    const chip = document.createElement('button');
-    chip.className = 'bh-chip';
-    chip.dataset.mode = mode;
-    chip.textContent = (mode === 'all') ? 'All' : mode;
-    on(chip, 'click', () => {
-      state.filterMode = mode;
-      state.ui.modeSel.value = mode;
-      highlightChip(mode);
-      render();
-    });
-    return chip;
-  }
-  function highlightChip(mode) {
-    $$('.bh-chip', state.ui.chips).forEach(ch => ch.classList.toggle('active', ch.dataset.mode === mode));
-  }
-
-  // ========== Rendering ==========
-  function render() {
-    if (!state.mounted) return;
-    const { list } = state.ui;
-    list.innerHTML = '';
-    const q = state.filterQuery;
-    const modeFilter = state.filterMode;
-
-    const modes = modeFilter === 'all'
-      ? Array.from(state.gamemodes).sort((a,b) => (a==='Global') ? -1 : a.localeCompare(b))
-      : [modeFilter];
-
-    for (const mode of modes) {
-      const defs = (state.cheatsByMode.get(mode) ?? []);
-      const items = defs.filter(d => {
-        if (!q) return true;
-        const hay = `${d.name} ${d.description ?? ''} ${d.keywords?.join(' ') ?? ''}`.toLowerCase();
-        return hay.includes(q);
-      });
-      if (!items.length) continue;
-
-      const section = document.createElement('div');
-      section.className = 'bh-section';
-      const h = document.createElement('h4');
-      h.textContent = mode;
-      section.appendChild(h);
-
-      for (const def of items) section.appendChild(renderItem(def));
-      list.appendChild(section);
+        let isDragging = false, offsetX, offsetY;
+        helperUI.addEventListener('mousedown', (e) => { if (e.target === helperUI || e.target.tagName === 'H3') { isDragging = true; offsetX = e.clientX - helperUI.offsetLeft; offsetY = e.clientY - helperUI.offsetTop; } });
+        document.addEventListener('mousemove', (e) => { if (isDragging) { helperUI.style.left = (e.clientX - offsetX) + 'px'; helperUI.style.top = (e.clientY - offsetY) + 'px'; } });
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Insert') helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none'; });
     }
 
-    if (!list.children.length) {
-      const empty = document.createElement('div');
-      empty.style.opacity = .7;
-      empty.style.fontSize = '12px';
-      empty.style.padding = '6px';
-      empty.textContent = 'No cheats match your filter.';
-      list.appendChild(empty);
-    }
-  }
+    // --- TAB LOGIC & EVENT LISTENERS ---
+    const gameModes = ['All', 'Global', 'Fishing Frenzy', 'Crypto Hack', 'Tower Defense 2', 'Monster Brawl', 'Settings'];
+    gameModes.forEach(mode => { const btn = document.createElement('button'); btn.className = 'gui-tab-btn'; btn.textContent = mode; btn.dataset.filter = mode.split(' ')[0].toLowerCase(); tabBar.appendChild(btn); btn.addEventListener('click', (e) => { tabBar.querySelectorAll('.gui-tab-btn').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); const filter = e.target.dataset.filter; contentArea.querySelectorAll('.cheat-section').forEach(section => { section.style.display = (filter === 'all' || section.dataset.gamemode === filter) ? 'flex' : 'none'; }); }); });
+    gui.querySelector('#gui-close-btn').onclick = () => { gui.remove(); document.querySelector('.helperUI')?.remove(); styleSheet.remove(); };
+    tabBar.querySelector('.gui-tab-btn').click();
+    document.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === settings.toggleKey.toLowerCase() && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) { gui.style.display = gui.style.display === 'none' ? 'flex' : 'none'; } });
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; const header = gui.querySelector('#gui-header'); header.onmousedown = e => { e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; settings.size = { width: gui.style.width, height: gui.style.height }; saveSettings(); }; document.onmousemove = event => { event.preventDefault(); pos1 = pos3 - event.clientX; pos2 = pos4 - event.clientY; pos3 = event.clientX; pos4 = event.clientY; gui.style.top = (gui.offsetTop - pos2) + "px"; gui.style.left = (gui.offsetLeft - pos1) + "px"; }; };
 
-  function renderItem(def) {
-    const wrap = document.createElement('div');
-    wrap.className = 'bh-item';
-    wrap.dataset.id = def.id;
-
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.innerHTML = `<div class="name">${def.name}${def.dangerous ? ' ⚠️' : ''}</div>${def.description ? `<div class="desc">${def.description}</div>` : ''}`;
-
-    const controls = document.createElement('div');
-    controls.className = 'bh-controls';
-
-    if (def.type === 'toggle') {
-      const key = `bh.toggle.${def.id}`;
-      const checked = loadLS(key, def.default ?? false);
-      const id = `t_${def.id.replace(/[^a-zA-Z0-9_-]/g,'')}`;
-      const sw = document.createElement('div');
-      sw.className = 'bh-switch';
-      sw.innerHTML = `<input id="${id}" type="checkbox"${checked ? ' checked' : ''}><label for="${id}" title="${def.description ?? ''}"></label>`;
-      const inp = sw.querySelector('input');
-      on(inp, 'change', async () => {
-        if (def.dangerous && inp.checked) {
-          const ok = await confirmBox(def.confirmTitle || 'Confirm powerful toggle', def.confirmText || 'This toggle can significantly affect the game. Continue?');
-          if (!ok) { inp.checked = false; return; }
-        }
-        saveLS(key, inp.checked);
-        try {
-          await def.onToggle?.(inp.checked, makeCtx(def));
-          api.toast(`${def.name}: ${inp.checked ? 'ON' : 'OFF'}`);
-        } catch (e) {
-          api.toast(`Error in ${def.name}: ${e.message || e}`, 3200);
-          console.error(e);
-        }
-      });
-      controls.appendChild(sw);
-    } else if (def.type === 'action') {
-      const run = document.createElement('button');
-      run.className = cls('bh-btn', def.dangerous && 'warn');
-      run.textContent = def.buttonText || 'Run';
-      on(run, 'click', async () => {
-        if (def.dangerous) {
-          const ok = await confirmBox(def.confirmTitle || 'Confirm powerful action', def.confirmText || 'This action can significantly affect the game. Continue?');
-          if (!ok) return;
-        }
-        try {
-          await def.onAction?.(makeCtx(def));
-        } catch (e) {
-          api.toast(`Error in ${def.name}: ${e.message || e}`, 3200);
-          console.error(e);
-        }
-      });
-      controls.appendChild(run);
-    } else if (def.type === 'input') {
-      const values = {};
-      (def.fields || []).forEach(f => {
-        const inp = document.createElement('input');
-        inp.className = 'bh-input';
-        inp.type = f.type || 'text';
-        if (f.min != null) inp.min = f.min;
-        if (f.max != null) inp.max = f.max;
-        inp.placeholder = f.placeholder || f.label || f.id;
-        inp.value = (f.value ?? '');
-        on(inp, 'input', () => { values[f.id] = castInput(inp); });
-        values[f.id] = castInput(inp);
-        controls.appendChild(inp);
-      });
-      const go = document.createElement('button');
-      go.className = cls('bh-btn', def.dangerous && 'warn');
-      go.textContent = def.buttonText || 'Go';
-      on(go, 'click', async () => {
-        if (def.dangerous) {
-          const ok = await confirmBox(def.confirmTitle || 'Confirm powerful action', def.confirmText || 'This action can significantly affect the game. Continue?');
-          if (!ok) return;
-        }
-        try {
-          await def.onRun?.(values, makeCtx(def));
-        } catch (e) {
-          api.toast(`Error in ${def.name}: ${e.message || e}`, 3200);
-          console.error(e);
-        }
-      });
-      controls.appendChild(go);
-    }
-
-    wrap.appendChild(meta);
-    wrap.appendChild(controls);
-    return wrap;
-  }
-
-  // ========== Confirmation Modal ==========
-  function confirmBox(title, text) {
-    const modal = $('#bh-confirm') || document.createElement('div');
-    if (!modal.parentNode) document.body.appendChild(modal);
-    $('#bh-confirm-title', state.ui.root).textContent = title || 'Confirm';
-    $('#bh-confirm-text', state.ui.root).textContent = text || 'Continue?';
-    return new Promise(resolve => {
-      modal.style.display = 'grid';
-      const ok = $('#bh-ok', state.ui.root);
-      const cancel = $('#bh-cancel', state.ui.root);
-      const done = (v) => { modal.style.display = 'none'; resolve(v); };
-      once(ok, 'click', () => done(true));
-      once(cancel, 'click', () => done(false));
-    });
-  }
-
-  // ========== API / Registration ==========
-  function registerCheat(def) {
-    // def: { id, name, description?, gamemodes?: string[], type: 'toggle'|'action'|'input', fields?, onToggle?, onAction?, onRun?, dangerous?, keywords?, default? }
-    if (!def || !def.id || !def.name || !def.type) throw new Error('registerCheat: id, name, type required');
-    if (state.cheatIndex.has(def.id)) { console.warn(`registerCheat duplicate id "${def.id}" ignored.`); return; }
-    const modes = def.gamemodes?.length ? def.gamemodes : ['Global'];
-    modes.forEach(m => {
-      state.gamemodes.add(m);
-      if (!state.cheatsByMode.has(m)) state.cheatsByMode.set(m, []);
-      state.cheatsByMode.get(m).push(def);
-    });
-    state.cheatIndex.set(def.id, def);
-    if (state.mounted) { rebuildModeControls(); render(); }
-  }
-  function registerMany(list) { list?.forEach(registerCheat); }
-  function makeCtx(def) {
-    return {
-      version: state.version,
-      def,
-      mode: def.gamemodes?.[0] || 'Global',
-      get: (id) => state.cheatIndex.get(id),
-      toast: (m, ms) => api.toast(m, ms),
-      ui: state.ui,
-      ls: { get: loadLS, set: saveLS }
-    };
-  }
-
-  function show() {
-    state.ui?.root?.classList.remove('bh-hidden');
-    state.ui?.panel?.classList.remove('bh-hidden');
-  }
-  function hide() {
-    state.ui?.root?.classList.add('bh-hidden');
-  }
-  function toast(message, ms=2000) {
-    const t = state.ui.toast;
-    if (!t) return;
-    t.textContent = message;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), ms);
-  }
-  function destroy() {
-    try { offStack.splice(0).forEach(off => off()); } catch {}
-    try { state.ui?.root?.remove(); } catch {}
-    try { $('#bh-style')?.remove(); } catch {}
-    state.mounted = false;
-  }
-
-  // ========== Bookmarklet Integration ==========
-  async function copyBookmarklet() {
-    try {
-      await navigator.clipboard.writeText(BM_URL);
-      toast('Bookmarklet code copied to clipboard.');
-    } catch {
-      prompt('Copy the code below and save as a bookmark URL:', BM_URL);
-    }
-  }
-  async function askAddBookmarkletOnFirstRun() {
-    const asked = loadLS('bh.bm.asked', false);
-    if (asked) return;
-    saveLS('bh.bm.asked', true);
-    const ok = await confirmBox('Add bookmark?', 'Do you want to add the Hacks as a bookmark for faster execution?');
-    if (ok) {
-      await copyBookmarklet();
-      toast('Paste into a new bookmark’s URL. See footer note for steps.', 3200);
-    }
-  }
-  function maybePromptBookmarklet() {
-    // allows re-prompting on version bumps if you want:
-    const lastVer = loadLS('bh.bm.lastVersion', null);
-    if (lastVer !== VERSION) {
-      saveLS('bh.bm.lastVersion', VERSION);
-      // soft toast reminder
-      toast('Tip: “Copy Bookmarklet” to update your bookmark.');
-    }
-  }
-
-  // ========== Public API ==========
-  const api = {
-    version: VERSION,
-    registerCheat,
-    registerMany,
-    show, hide, destroy, toast,
-    maybePromptBookmarklet,
-  };
-  window[NS] = api;
-
-  // ========== Mount + Boot ==========
-  mountUI();
-  maybePromptBookmarklet();
-  // First-run prompt to add bookmarklet (your exact code)
-  askAddBookmarkletOnFirstRun();
-
-  // ========== Demo stubs (replace with your real cheats) ==========
-  // Fishing Frenzy — Always Quintuple (toggle)
-  registerCheat({
-    id: 'ff-always-quintuple',
-    name: 'Always Quintuple',
-    description: 'Auto-choose Quintuple when available.',
-    gamemodes: ['Fishing Frenzy'],
-    type: 'toggle',
-    default: false,
-    onToggle: async (on, ctx) => {
-      // TODO: Hook into your real FF logic here
-      console.log('[demo] Always Quintuple:', on, ctx);
-    }
-  });
-
-  // Global — Flood Game (input)
-  registerCheat({
-    id: 'global-flood',
-    name: 'Flood Game',
-    description: 'Spawn many bots. Use responsibly.',
-    gamemodes: ['Global'],
-    type: 'input',
-    dangerous: true,
-    confirmTitle: 'Confirm Flood',
-    confirmText: 'This can spam a game. Are you sure?',
-    fields: [
-      { id: 'count', label: 'Bots', type: 'number', min: 1, max: 500, value: 50, placeholder: 'Bots' },
-      { id: 'prefix', label: 'Prefix', type: 'text', value: 'Bot-' }
-    ],
-    onRun: async (values, ctx) => {
-      // TODO: Replace with your real flood code
-      console.log('[demo] Flood params:', values, ctx);
-      ctx.toast(`Requested ${values.count} bots with prefix "${values.prefix}"`, 2400);
-    }
-  });
-
-  // Example action (one-off)
-  registerCheat({
-    id: 'crypto-give-tokens',
-    name: 'Give Tokens',
-    description: 'Example action button for Crypto Hack.',
-    gamemodes: ['Crypto Hack'],
-    type: 'action',
-    onAction: async (ctx) => {
-      // TODO: Your give-tokens logic here
-      console.log('[demo] Give Tokens action for', ctx.mode);
-      ctx.toast('Gave tokens (demo)');
-    }
-  });
-
+    // --- Initialize Everything ---
+    initializeAdminPanel();
 })();
