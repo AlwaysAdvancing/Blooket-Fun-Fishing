@@ -411,7 +411,7 @@ document.addEventListener('mouseup', () => {
     });
 
     const title = document.createElement('h3');
-    title.textContent = 'Battle Royale Cheats (Press M to hide/show)';
+    title.textContent = 'Battle Royale Cheats (Press K to hide/show)';
     title.style.margin = '0 0 10px 0';
     title.style.textAlign = 'center';
     title.style.color = '#2196F3';
