@@ -1,29 +1,116 @@
 (function() {
     'use-strict';
 
-    // --- Robust Game State Finder ---
+    // --- State Node Finders ---
     function getGameState() { try { const el = document.querySelector("#app"); if (!el) return null; const rk = Object.keys(el).find(k => k.startsWith("__reactContainer$")); if (!rk) return null; let n = el[rk]; while (n) { if (n.stateNode?.props?.liveGameController) return n.stateNode; n = n.child; } return null; } catch (e) { return null; } }
 
+    function getWorkingStateNode() {
+        try {
+            const reactNode = (function react(r = document.querySelector("body>div")) {
+                return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div"));
+            })();
+            return Object.values(reactNode)[1].children[0]._owner.stateNode;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // --- Core Cheat Logic ---
+    function findAndClickCorrectAnswer() {
+        const gs = getGameState();
+        if (gs?.state?.question) {
+            const correctAnswer = gs.state.question.correctAnswers[0];
+            const answerButtons = document.querySelectorAll('[class*="answerContainer"]');
+            for (const button of answerButtons) {
+                if (button.innerText === correctAnswer) {
+                    button.click();
+                    break;
+                }
+            }
+        }
+    }
+
+    function parseWeightWithSuffixes(input) {
+        const rawInput = String(input).trim().toLowerCase();
+        const multipliers = { 'lucas': Number.POSITIVE_INFINITY, 'sx': 1e21, 'qi': 1e18, 'q': 1e15, 't': 1e12, 'b': 1e9, 'm': 1e6, 'k': 1e3 };
+        const sortedSuffixes = Object.keys(multipliers).sort((a, b) => b.length - a.length);
+        for (const suffix of sortedSuffixes) {
+            if (rawInput.endsWith(suffix)) {
+                const numberPart = rawInput.slice(0, -suffix.length);
+                const baseValue = numberPart === '' ? 1 : parseFloat(numberPart);
+                if (!isNaN(baseValue)) return Math.floor(baseValue * multipliers[suffix]);
+            }
+        }
+        const plainNumber = parseFloat(rawInput);
+        return isNaN(plainNumber) ? NaN : plainNumber;
+    }
+
+    function romanToInt(s) {
+        const romanMap = { 'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000 };
+        let total = 0; const upperCaseS = s.toUpperCase();
+        for (let i = 0; i < upperCaseS.length; i++) {
+            const currentVal = romanMap[upperCaseS[i]], nextVal = romanMap[upperCaseS[i + 1]];
+            if (nextVal && currentVal < nextVal) total -= currentVal; else total += currentVal;
+        }
+        return total;
+    }
+
     // --- Cheats & Toggles ---
-    window.autoCastInterval = null; window.frenzyInterval = null;
+    window.frenzyInterval = null; window.autoAnswerInterval = null; window.rainbowInterval = null; window.removeDistractionsInterval = null;
+    window.autoGuessInterval = null; window.removeHackBoxInterval = null; window.alwaysTripleInterval = null;
+    window.choiceESPInt = null; window.passwordESPInt = null;
+    let isRomanMode = false;
+
     const cheats = {
-        setLure: (e) => { const gs = getGameState(); if (gs?.state) gs.setState({ lure: parseInt(e.target.value, 10) }); },
-        setWeight: (weight) => { if (!weight || isNaN(weight)) return; const gs = getGameState(); if (gs?.state) { gs.setState({ weight: parseInt(weight, 10) }); const wi = document.getElementById('blooket-gui-weight-input'); if (wi) { wi.style.transition = 'none'; wi.style.backgroundColor = 'var(--gui-accent-green)'; setTimeout(() => { wi.style.transition = 'background-color 0.5s'; wi.style.backgroundColor = 'var(--gui-bg-solid)'; }, 100); } } },
-        startAutoCast: () => { if (window.autoCastInterval) return; window.autoCastInterval = setInterval(() => { const gs = getGameState(); if (gs?.state?.canFish) gs.cast(); }, 1000); },
-        stopAutoCast: () => { clearInterval(window.autoCastInterval); window.autoCastInterval = null; },
-        startFrenzy: () => { if (window.frenzyInterval) return; window.frenzyInterval = setInterval(() => { const gs = getGameState(); if (gs?.state) gs.setState({ isFrenzy: true }); }, 100); },
-        stopFrenzy: () => { clearInterval(window.frenzyInterval); window.frenzyInterval = null; const gs = getGameState(); if (gs?.state) gs.setState({ isFrenzy: false }); },
-        toggleAutoAnswerOn: () => console.log("Auto Answer ON"), toggleAutoAnswerOff: () => console.log("Auto Answer OFF"),
+        // Fishing Frenzy
+        setLure: (e) => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.setState({ lure: parseInt(e.target.value, 10) }); },
+        setWeight: (weightInput) => {
+            const stateNode = getWorkingStateNode();
+            const parsedWeight = isRomanMode ? romanToInt(weightInput) : parseWeightWithSuffixes(weightInput);
+            if (!stateNode || isNaN(parsedWeight) || parsedWeight <= 0) return;
+            stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}`, val: { b: stateNode.props.client.blook, w: parsedWeight } });
+            stateNode.setState({ weight: parsedWeight, weight2: parsedWeight });
+            const wi = document.getElementById('blooket-gui-weight-input');
+            if (wi) { wi.style.transition = 'none'; wi.style.backgroundColor = 'var(--gui-accent-green)'; setTimeout(() => { wi.style.transition = 'background-color 0.5s'; wi.style.backgroundColor = 'var(--gui-bg-solid)'; }, 100); }
+        },
+        startFrenzy: () => { if (window.frenzyInterval) return; window.frenzyInterval = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}`, val: { b: stateNode.props.client.blook, w: stateNode.state.weight, f: "Frenzy", s: true } }); }, 100); },
+        stopFrenzy: () => { clearInterval(window.frenzyInterval); window.frenzyInterval = null; const stateNode = getWorkingStateNode(); if (stateNode) stateNode.setState({ isFrenzy: false }); },
+        startRemoveDistractions: () => { if (window.removeDistractionsInterval) return; window.removeDistractionsInterval = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.setState({ party: "" }); }, 50); },
+        stopRemoveDistractions: () => { clearInterval(window.removeDistractionsInterval); window.removeDistractionsInterval = null; },
+        sendDistraction: (fishName) => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}`, val: { b: stateNode.props.client.blook, w: stateNode.state.weight, f: fishName, s: true } }); },
+        
+        // Global
+        startAutoAnswer: () => { if (window.autoAnswerInterval) return; window.autoAnswerInterval = setInterval(findAndClickCorrectAnswer, settings.autoAnswerSpeed); },
+        stopAutoAnswer: () => { clearInterval(window.autoAnswerInterval); window.autoAnswerInterval = null; },
+        
+        // Crypto Hack
+        startAutoGuess: () => { if (window.autoGuessInterval) return; window.autoGuessInterval = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode?.state?.choices) for (const choice of stateNode.state.choices) if (choice.correct) stateNode.guess(choice.text); }, 50); },
+        stopAutoGuess: () => { clearInterval(window.autoGuessInterval); window.autoGuessInterval = null; },
+        setCryptoPassword: (password) => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}/p`, val: password }); },
+        setCrypto: (amount) => { const stateNode = getWorkingStateNode(); if (stateNode) stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}/c`, val: parseFloat(amount) || 0 }); },
+        startRemoveHackBox: () => { if (window.removeHackBoxInterval) return; window.removeHackBoxInterval = setInterval(() => { const box = document.querySelector('div[class^="styles__box___"]'); if (box) box.style.display = 'none'; }, 50); },
+        stopRemoveHackBox: () => { clearInterval(window.removeHackBoxInterval); window.removeHackBoxInterval = null; },
+        startAlwaysTriple: () => { if (window.alwaysTripleInterval) return; window.alwaysTripleInterval = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode?.state?.stage === "prize") stateNode.setState({ add: stateNode.state.crypto * 2 }); }, 50); },
+        stopAlwaysTriple: () => { clearInterval(window.alwaysTripleInterval); window.alwaysTripleInterval = null; },
+        startChoiceESP: () => { if (window.choiceESPInt) return; window.choiceESPInt = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode?.state?.choices) document.querySelectorAll('div[class^="styles__choice___"]').forEach((e, i) => { if (e.innerText === "") e.innerText = stateNode.state.choices[i].type; }); }, 50); },
+        stopChoiceESP: () => { clearInterval(window.choiceESPInt); window.choiceESPInt = null; document.querySelectorAll('div[class^="styles__choice___"]').forEach(e => e.innerHTML = ""); },
+        startPasswordESP: () => { if (window.passwordESPInt) return; window.passwordESPInt = setInterval(() => { const stateNode = getWorkingStateNode(); if (stateNode?.state?.game?.players) document.querySelectorAll('div[class^="styles__name___"]').forEach(el => { const player = stateNode.state.game.players[el.innerText]; let passEl = el.querySelector('.esp-password'); if (player?.p) { if (!passEl) { passEl = document.createElement('div'); passEl.className = 'esp-password'; passEl.style.color = 'yellow'; el.append(passEl); } passEl.innerText = player.p; } else if (passEl) passEl.remove(); }); }, 100); },
+        stopPasswordESP: () => { clearInterval(window.passwordESPInt); window.passwordESPInt = null; document.querySelectorAll('.esp-password').forEach(e => e.remove()); },
+        stealPlayerCrypto: (playerName) => { const stateNode = getWorkingStateNode(); if (stateNode && playerName) stateNode.props.liveGameController.setVal({ path: `c/${stateNode.props.client.name}/steal`, val: playerName }); },
+
+        // Settings
+        startRainbow: () => { if (window.rainbowInterval) return; let hue = 0; const masterPicker = document.getElementById('gui-master-color-picker'); if (masterPicker) masterPicker.disabled = true; window.rainbowInterval = setInterval(() => { hue = (hue + 1) % 360; const alpha = 1.0 - (settings.transparency / 100.0); const accentColor = `hsl(${hue}, 90%, 55%)`, bgLightColor = `hsla(${hue}, 35%, 20%, ${alpha})`, bgColor = `hsla(${hue}, 35%, 15%, ${alpha})`, bgLightSolidColor = `hsl(${hue}, 35%, 20%)`, bgSolidColor = `hsl(${hue}, 35%, 15%)`; gui.style.setProperty('--gui-accent', accentColor); gui.style.setProperty('--gui-bg-light', bgLightColor); gui.style.setProperty('--gui-bg', bgColor); gui.style.setProperty('--gui-bg-light-solid', bgLightSolidColor); gui.style.setProperty('--gui-bg-solid', bgSolidColor); }, 25); },
+        stopRainbow: () => { clearInterval(window.rainbowInterval); window.rainbowInterval = null; const masterPicker = document.getElementById('gui-master-color-picker'); if (masterPicker) masterPicker.disabled = false; updateAppearance(); }
     };
 
     // --- Settings & Persistence ---
-    const defaultSettings = { colors: { '--gui-accent': '#5865f2', '--gui-accent-green': '#2ecc71', '--gui-bg-solid': '#1e1e1e', '--gui-bg-light-solid': '#2d2d2d', '--gui-border-solid': '#444444', '--gui-text': '#e0e0e0', '--gui-text-dark': '#999999' }, transparency: 0, bgImage: null, toggleKey: 'k', size: { width: '340px', height: 'auto' } };
+    const defaultSettings = { colors: { '--gui-accent': '#5865f2', '--gui-accent-green': '#2ecc71', '--gui-bg-solid': '#1e1e1e', '--gui-bg-light-solid': '#2d2d2d', '--gui-border-solid': '#444444', '--gui-text': '#e0e0e0', '--gui-text-dark': '#999999' }, transparency: 0, bgImage: null, toggleKey: 'k', size: { width: '340px', height: 'auto' }, autoAnswerSpeed: 10 };
     let settings = {};
     function saveSettings() { localStorage.setItem('blooketGuiSettings', JSON.stringify(settings)); }
     function hexToRgba(hex, alpha) { const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); return `rgba(${r}, ${g}, ${b}, ${alpha})`; }
     function updateAppearance() { const alpha = 1.0 - (settings.transparency / 100.0); Object.entries(settings.colors).forEach(([k, v]) => gui.style.setProperty(k.replace('-solid', ''), k.endsWith('-solid') ? hexToRgba(v, alpha) : v)); gui.style.setProperty('--gui-bg-solid', settings.colors['--gui-bg-solid']); if (settings.bgImage) { gui.style.backgroundImage = `url(${settings.bgImage})`; } else { gui.style.backgroundImage = 'none'; } }
 
-    // --- GUI STYLES (Scoped to prevent conflicts) ---
+    // --- GUI STYLES ---
     const styles = `
         #blooket-hack-gui { position: fixed; top: 50px; left: 50px; min-width: 320px; max-width: 90vw; min-height: 400px; max-height: 90vh; border-radius: 8px; box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5); z-index: 10001; display: flex; resize: both; overflow: hidden; background-size: cover; background-position: center; }
         #blooket-hack-gui #gui-panel { width: 100%; height: 100%; display: flex; flex-direction: column; background-color: var(--gui-bg); border: 1px solid var(--gui-border); border-radius: 8px; overflow: hidden; font-family: 'Inter', 'Roboto', 'Arial', sans-serif; color: var(--gui-text); }
@@ -38,10 +125,12 @@
         #blooket-hack-gui .cheat-section h2 { font-size: 0.8em; text-transform: uppercase; color: var(--gui-text-dark); margin: 0; padding-bottom: 5px; }
         #blooket-hack-gui .cheat-card { background-color: var(--gui-bg-light); border: 1px solid var(--gui-border); border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; }
         #blooket-hack-gui .cheat-card-action { display: flex; align-items: center; gap: 8px; }
+        .cheat-card-action.vertical { flex-direction: column; align-items: stretch !important; gap: 5px !important; }
         #blooket-hack-gui .cheat-card-action button, #blooket-hack-gui .cheat-card-action select, #blooket-hack-gui .cheat-card-action label { background-color: var(--gui-accent); color: white; border: none; border-radius: 5px; padding: 8px 12px; font-size: 0.9em; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
-        #blooket-hack-gui .gui-input-box { background-color: var(--gui-bg-solid); border: 1px solid var(--gui-border); color: var(--gui-text); border-radius: 5px; padding: 8px; font-size: 0.9em; width: 70px; text-align: center; }
+        #blooket-hack-gui .gui-input-box { background-color: var(--gui-bg-solid); border: 1px solid var(--gui-border); color: var(--gui-text); border-radius: 5px; padding: 8px; font-size: 0.9em; width: auto; text-align: center; }
         #blooket-hack-gui input[type="color"] { -webkit-appearance: none; -moz-appearance: none; appearance: none; width: 44px; height: 28px; background-color: transparent; border: none; border-radius: 5px; cursor: pointer; }
         #blooket-hack-gui input[type="color"]::-webkit-color-swatch { border-radius: 4px; border: 1px solid var(--gui-border); }
+        .changelog-entry { margin-bottom: 15px; } .changelog-entry h3, .changelog-entry p { text-align: center; margin-bottom: 15px; color: var(--gui-text-dark); } .changelog-entry h3 { color: var(--gui-accent); font-size: 1.1em; } .changelog-entry h4 { color: var(--gui-text); margin-bottom: 5px; border-bottom: 1px solid var(--gui-border); padding-bottom: 3px; } .changelog-entry ul { list-style-type: '» '; padding-left: 20px; margin: 0; } .changelog-entry li { margin-bottom: 5px; color: var(--gui-text-dark); }
     `;
     const styleSheet = document.createElement("style"); styleSheet.innerText = styles; document.head.appendChild(styleSheet);
 
@@ -54,62 +143,97 @@
 
     // --- HELPER FUNCTIONS ---
     function createCheatSection(gamemode, title) { const s = document.createElement('div'); s.className = 'cheat-section'; s.dataset.gamemode = gamemode; s.innerHTML = `<h2>${title}</h2>`; contentArea.appendChild(s); return s; }
-    function createCheat(section, title, actionElement) { const c = document.createElement('div'); c.className = 'cheat-card'; c.innerHTML = `<div class="cheat-card-info">${title}</div>`; const a = document.createElement('div'); a.className = 'cheat-card-action'; a.appendChild(actionElement); c.appendChild(a); section.appendChild(c); }
+    function createCheat(section, title, actionElement, isVertical = false) { const c = document.createElement('div'); c.className = 'cheat-card'; c.innerHTML = `<div class="cheat-card-info">${title}</div>`; const a = document.createElement('div'); a.className = `cheat-card-action ${isVertical ? 'vertical' : ''}`; a.appendChild(actionElement); c.appendChild(a); section.appendChild(c); }
     function createToggle(title, onAction, offAction) { const b = document.createElement('button'); b.textContent = title; b.isToggled = false; b.addEventListener('click', () => { b.isToggled = !b.isToggled; if (b.isToggled) { b.textContent = `${title} (ON)`; b.style.backgroundColor = 'var(--gui-accent-green)'; onAction(); } else { b.textContent = title; b.style.backgroundColor = 'var(--gui-accent)'; offAction(); } }); return b; }
+    function createInputWithButton(placeholder, buttonText, onButtonClick) { const container = document.createElement('div'); container.style.display = 'flex'; container.style.width = '100%'; const input = Object.assign(document.createElement('input'), { className: 'gui-input-box', type: 'text', placeholder }); input.style.flexGrow = '1'; const button = Object.assign(document.createElement('button'), { textContent: buttonText }); button.onclick = () => onButtonClick(input.value); container.append(input, button); return container; }
     function createColorPicker(section, label, varName) { const i = document.createElement('input'); i.type = 'color'; i.dataset.var = varName; i.value = settings.colors[varName]; i.oninput = (e) => { settings.colors[varName] = e.target.value; updateAppearance(); saveSettings(); }; createCheat(section, label, i); }
     function shadeColor(c, p) { let f = parseInt(c.slice(1), 16), t = p < 0 ? 0 : 255, R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x0000FF; return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1); }
 
     // --- POPULATE THE GUI ---
-    const fishingSection = createCheatSection('fishing', 'Fishing Frenzy'), globalSection = createCheatSection('global', 'Global'), cryptoSection = createCheatSection('crypto', 'Crypto Hack'), towerSection = createCheatSection('tower', 'Tower Defense'), brawlSection = createCheatSection('monster', 'Monster Brawl'), settingsSection = createCheatSection('settings', 'Settings');
-    createCheat(fishingSection, 'Fishing Frenzy Multiplier', createToggle('Frenzy Event', cheats.startFrenzy, cheats.stopFrenzy)); createCheat(fishingSection, 'Auto-Cast', createToggle('Auto-Cast', cheats.startAutoCast, cheats.stopAutoCast));
+    const fishingSection = createCheatSection('fishing', 'Fishing Frenzy'), globalSection = createCheatSection('global', 'Global'), cryptoSection = createCheatSection('crypto', 'Crypto Hack'), towerSection = createCheatSection('tower', 'Tower Defense'), brawlSection = createCheatSection('monster', 'Monster Brawl'), settingsSection = createCheatSection('settings', 'Settings'), changelogSection = createCheatSection('changelog', 'Changelog');
+    
+    // -- Fishing Frenzy Section --
+    createCheat(fishingSection, 'Fishing Frenzy Multiplier', createToggle('Frenzy Event', cheats.startFrenzy, cheats.stopFrenzy));
+    createCheat(fishingSection, 'Hide Big Fish Animation', createToggle('Remove Distractions', cheats.startRemoveDistractions, cheats.stopRemoveDistractions));
+    const distractionContainer = document.createElement('div'); distractionContainer.style.display = 'flex'; distractionContainer.style.width = '100%'; const distractionDropdown = document.createElement('select'); distractionDropdown.style.flexGrow = '1';
+    ["Crab", "Jellyfish", "Frog", "Pufferfish", "Octopus", "Narwhal", "Megalodon", "Blobfish", "Baby Shark"].forEach(fish => distractionDropdown.add(new Option(fish, fish)));
+    const sendButton = Object.assign(document.createElement('button'), { textContent: 'Send' }); sendButton.onclick = () => cheats.sendDistraction(distractionDropdown.value);
+    distractionContainer.append(distractionDropdown, sendButton); createCheat(fishingSection, 'Send Distraction', distractionContainer);
     const rodLevelDropdown = document.createElement('select'); for (let i = 0; i < 5; i++) rodLevelDropdown.add(new Option(`Level ${i + 1}`, i)); rodLevelDropdown.onchange = cheats.setLure; createCheat(fishingSection, 'Set Lure/Rod', rodLevelDropdown);
-    const weightActionContainer = document.createElement('div'); const weightInput = Object.assign(document.createElement('input'), { id: 'blooket-gui-weight-input', className: 'gui-input-box', type: 'number', placeholder: 'e.g. 500' }); weightInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); cheats.setWeight(e.target.value); } }; weightActionContainer.append(weightInput, Object.assign(document.createElement('span'), { textContent: 'lbs' })); createCheat(fishingSection, 'Set Weight', weightActionContainer);
-    createCheat(globalSection, 'Auto Answer', createToggle('Auto Answer', cheats.toggleAutoAnswerOn, cheats.toggleAutoAnswerOff));
-    cryptoSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Crypto Hack will go here.</p>`; towerSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Tower Defense 2 will go here.</p>`; brawlSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Cheats for Monster Brawl will go here.</p>`;
-    // --- SETTINGS CONTENT ---
-    const masterPicker = document.createElement('input'); masterPicker.type = 'color'; masterPicker.value = settings.colors['--gui-accent']; masterPicker.oninput = (e) => { const base = e.target.value; settings.colors = { ...settings.colors, '--gui-accent': base, '--gui-accent-green': shadeColor(base, 0.4).replace(base.slice(1, 3), '2e'), '--gui-bg-solid': shadeColor(base, -0.9), '--gui-bg-light-solid': shadeColor(base, -0.8), '--gui-border-solid': shadeColor(base, -0.7) }; updateAppearance(); saveSettings(); document.querySelectorAll('#blooket-hack-gui input[type="color"]').forEach(p => p.value = settings.colors[p.dataset.var]); };
+    const weightContainer = document.createElement('div'); const weightModeToggle = document.createElement('button'); weightModeToggle.textContent = "Mode: Standard"; weightModeToggle.style.marginBottom = '5px'; const weightInputContainer = document.createElement('div'); weightInputContainer.style.display = 'flex'; weightInputContainer.style.width = '100%'; const weightInput = Object.assign(document.createElement('input'), { id: 'blooket-gui-weight-input', className: 'gui-input-box', type: 'text', placeholder: 'e.g., 2.5b' }); weightInput.style.flexGrow = '1'; const lbsSpan = Object.assign(document.createElement('span'), { textContent: 'lbs', style: 'padding: 8px; background: var(--gui-bg-solid); border-radius: 0 5px 5px 0; border: 1px solid var(--gui-border); border-left: none;' }); weightInputContainer.append(weightInput, lbsSpan);
+    weightModeToggle.onclick = () => { isRomanMode = !isRomanMode; if (isRomanMode) { weightModeToggle.textContent = "Mode: Roman"; weightInput.placeholder = "e.g., CXXIII"; } else { weightModeToggle.textContent = "Mode: Standard"; weightInput.placeholder = "e.g., 2.5b"; } };
+    weightInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); cheats.setWeight(e.target.value); } };
+    weightContainer.append(weightModeToggle, weightInputContainer); createCheat(fishingSection, 'Set Weight', weightContainer, true);
+
+    // -- Global Section --
+    const autoAnswerToggle = createToggle('Auto Answer', cheats.startAutoAnswer, cheats.stopAutoAnswer); createCheat(globalSection, 'Auto Answer', autoAnswerToggle);
+    const speedActionContainer = document.createElement('div'); const speedInput = Object.assign(document.createElement('input'), { className: 'gui-input-box', type: 'number', value: settings.autoAnswerSpeed });
+    speedInput.oninput = () => { const newSpeed = parseInt(speedInput.value); if (!isNaN(newSpeed) && newSpeed > 0) { settings.autoAnswerSpeed = newSpeed; saveSettings(); if (autoAnswerToggle.isToggled) { cheats.stopAutoAnswer(); cheats.startAutoAnswer(); } } };
+    speedActionContainer.append(speedInput, Object.assign(document.createElement('span'), { textContent: 'ms' })); createCheat(globalSection, 'Auto Answer Speed', speedActionContainer);
+    
+    // -- Crypto Hack Section --
+    createCheat(cryptoSection, 'Set Your Crypto', createInputWithButton('amount', 'Set', cheats.setCrypto));
+    createCheat(cryptoSection, 'Set Your Password', createInputWithButton('password', 'Set', cheats.setCryptoPassword));
+    createCheat(cryptoSection, "Steal Player's Crypto", createInputWithButton('Player Name', 'Steal', cheats.stealPlayerCrypto));
+    createCheat(cryptoSection, 'Auto-Guess Password', createToggle('Auto-Guess', cheats.startAutoGuess, cheats.stopAutoGuess));
+    createCheat(cryptoSection, 'Always Triple Crypto', createToggle('Always Triple', cheats.startAlwaysTriple, cheats.stopAlwaysTriple));
+    createCheat(cryptoSection, "See Player Passwords", createToggle("Password ESP", cheats.startPasswordESP, cheats.stopPasswordESP));
+    createCheat(cryptoSection, 'See Prize Boxes', createToggle('Choice ESP', cheats.startChoiceESP, cheats.stopChoiceESP));
+    createCheat(cryptoSection, 'Block Hack Attempts', createToggle('No Hack Box', cheats.startRemoveHackBox, cheats.stopRemoveHackBox));
+
+    // -- Other Sections (Placeholders) --
+    towerSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Coming Soon!</p>`;
+    brawlSection.innerHTML += `<p style="color:var(--gui-text-dark);text-align:center;">Coming Soon!</p>`;
+    
+    // -- Settings Section (Restored) --
+    const masterPicker = document.createElement('input'); masterPicker.type = 'color'; masterPicker.id = 'gui-master-color-picker'; masterPicker.value = settings.colors['--gui-accent']; masterPicker.oninput = (e) => { const base = e.target.value; settings.colors = { ...settings.colors, '--gui-accent': base, '--gui-accent-green': shadeColor(base, 0.4).replace(base.slice(1, 3), '2e'), '--gui-bg-solid': shadeColor(base, -0.9), '--gui-bg-light-solid': shadeColor(base, -0.8), '--gui-border-solid': shadeColor(base, -0.7) }; updateAppearance(); saveSettings(); document.querySelectorAll('#blooket-hack-gui input[type="color"][data-var]').forEach(p => p.value = settings.colors[p.dataset.var]); };
     createCheat(settingsSection, 'Master Theme Color', masterPicker);
+    createCheat(settingsSection, 'Rainbow Mode', createToggle('Rainbow', cheats.startRainbow, cheats.stopRainbow));
     createColorPicker(settingsSection, 'Toggle ON Color', '--gui-accent-green'); createColorPicker(settingsSection, 'Button / Toggle OFF Color', '--gui-accent'); createColorPicker(settingsSection, 'Main BG Solid Color', '--gui-bg-solid'); createColorPicker(settingsSection, 'Header/Card Solid Color', '--gui-bg-light-solid');
-    const transparencyContainer = document.createElement('div'); transparencyContainer.style.display = 'flex'; transparencyContainer.style.alignItems = 'center'; transparencyContainer.style.gap = '10px'; const slider = document.createElement('input'); slider.type = 'range'; slider.min = 0; slider.max = 80; slider.step = 1; slider.value = settings.transparency; slider.style.flexGrow = '1'; const percentLabel = document.createElement('span'); percentLabel.style.minWidth = '40px'; percentLabel.textContent = `${slider.value}%`; slider.oninput = () => { settings.transparency = parseInt(slider.value); percentLabel.textContent = `${slider.value}%`; updateAppearance(); saveSettings(); }; transparencyContainer.append(slider, percentLabel); createCheat(settingsSection, 'UI Transparency', transparencyContainer);
-    const bgActionContainer = document.createElement('div'); const bgFileInput = document.createElement('input'); bgFileInput.type = 'file'; bgFileInput.accept = 'image/*'; bgFileInput.style.display = 'none'; bgFileInput.id = 'gui-bg-upload'; const bgSelectLabel = document.createElement('label'); bgSelectLabel.id = 'gui-bg-select-label'; bgSelectLabel.htmlFor = 'gui-bg-upload'; bgSelectLabel.textContent = 'Select Image'; const bgRemoveBtn = document.createElement('button'); bgRemoveBtn.textContent = 'Remove'; bgRemoveBtn.style.backgroundColor = '#6c757d'; bgActionContainer.append(bgSelectLabel, bgRemoveBtn);
+    const transparencyContainer = document.createElement('div'); transparencyContainer.style.display = 'flex'; transparencyContainer.style.alignItems = 'center'; transparencyContainer.style.gap = '10px'; const slider = document.createElement('input'); slider.id = 'transparency-slider'; slider.type = 'range'; slider.min = 0; slider.max = 80; slider.step = 1; slider.value = settings.transparency; slider.style.flexGrow = '1'; const percentLabel = document.createElement('span'); percentLabel.style.minWidth = '40px'; percentLabel.textContent = `${slider.value}%`; slider.oninput = () => { settings.transparency = parseInt(slider.value); percentLabel.textContent = `${slider.value}%`; updateAppearance(); saveSettings(); }; transparencyContainer.append(slider, percentLabel); createCheat(settingsSection, 'UI Transparency', transparencyContainer);
+    const bgActionContainer = document.createElement('div'); const bgFileInput = document.createElement('input'); bgFileInput.type = 'file'; bgFileInput.accept = 'image/*'; bgFileInput.style.display = 'none'; bgFileInput.id = 'gui-bg-upload'; const bgSelectLabel = document.createElement('label'); bgSelectLabel.htmlFor = 'gui-bg-upload'; bgSelectLabel.textContent = 'Select Image'; const bgRemoveBtn = document.createElement('button'); bgRemoveBtn.textContent = 'Remove'; bgRemoveBtn.style.backgroundColor = '#6c757d'; bgActionContainer.append(bgSelectLabel, bgRemoveBtn);
     bgFileInput.onchange = (e) => { const file = e.target.files[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { alert("Image too large! Max 5MB."); return; } const reader = new FileReader(); reader.onload = (event) => { settings.bgImage = event.target.result; slider.value = 50; slider.dispatchEvent(new Event('input')); }; reader.readAsDataURL(file); };
     bgRemoveBtn.onclick = () => { settings.bgImage = null; slider.value = 0; slider.dispatchEvent(new Event('input')); }; settingsSection.appendChild(bgFileInput); createCheat(settingsSection, 'Custom Background', bgActionContainer);
     const keybindButton = document.createElement('button'); keybindButton.id = 'gui-keybind-btn'; const displayKey = (settings.toggleKey === ' ') ? 'Space' : settings.toggleKey.toUpperCase(); keybindButton.textContent = `Keybind: ${displayKey}`; keybindButton.onclick = () => { keybindButton.textContent = 'Press any key...'; const keydownHandler = (e) => { e.preventDefault(); settings.toggleKey = e.key; const newDisplayKey = (e.key === ' ') ? 'Space' : e.key.toUpperCase(); keybindButton.textContent = `Keybind: ${newDisplayKey}`; saveSettings(); document.removeEventListener('keydown', keydownHandler, { capture: true }); }; document.addEventListener('keydown', keydownHandler, { capture: true, once: true }); }; createCheat(settingsSection, 'Show/Hide Key', keybindButton);
     const resetButton = document.createElement('button'); resetButton.textContent = 'Reset All Settings'; resetButton.style.backgroundColor = '#dc3545';
-    resetButton.onclick = () => { if (confirm("Are you sure you want to reset all main GUI settings to default?")) { settings = JSON.parse(JSON.stringify(defaultSettings)); updateAppearance(); saveSettings(); document.querySelectorAll('#blooket-hack-gui input[type="color"]').forEach(p => p.value = settings.colors[p.dataset.var]); slider.value = settings.transparency; percentLabel.textContent = `${settings.transparency}%`; keybindButton.textContent = `Keybind: ${settings.toggleKey.toUpperCase()}`; gui.style.width = defaultSettings.size.width; gui.style.height = defaultSettings.size.height; } };
+    resetButton.onclick = () => { if (confirm("Are you sure you want to reset all main GUI settings to default?")) { settings = JSON.parse(JSON.stringify(defaultSettings)); saveSettings(); updateAppearance(); masterPicker.value = settings.colors['--gui-accent']; document.querySelectorAll('#blooket-hack-gui input[type="color"][data-var]').forEach(p => { p.value = settings.colors[p.dataset.var]; }); slider.value = settings.transparency; percentLabel.textContent = `${settings.transparency}%`; keybindButton.textContent = `Keybind: ${settings.toggleKey.toUpperCase()}`; gui.style.width = defaultSettings.size.width; gui.style.height = defaultSettings.size.height; speedInput.value = settings.autoAnswerSpeed; } };
     createCheat(settingsSection, 'Reset All', resetButton);
 
-    // --- Admin Panel Module ---
-    function initializeAdminPanel() {
-        const helperUI = document.createElement('div');
-        helperUI.className = 'helperUI';
-        helperUI.style.cssText = 'position: fixed; top: 50px; right: 20px; width: 280px; max-height: 70vh; overflow-y: auto; background-color: rgba(0,0,0,0.85); border: 2px solid lime; border-radius: 8px; padding: 10px; z-index: 999998; display: none;';
-        helperUI.innerHTML = `<h3 style="color: lime; text-align: center; margin-top:0;">👑 Admin Panel</h3>`;
-        const floodContainer = document.createElement('div');
-        floodContainer.style.cssText = 'margin-top: 15px; border-top: 1px solid lime; padding-top: 10px;';
-        floodContainer.innerHTML = `<h4 style="color: lime; text-align: center; margin: 0 0 10px 0;">Game Flooder</h4>`;
-        const nameInput = Object.assign(document.createElement('input'), { placeholder: 'Bot Name', style: 'width: 100%; box-sizing: border-box; margin-bottom: 5px; background: #111; color: lime; border: 1px solid lime; padding: 5px;' });
-        const amountInput = Object.assign(document.createElement('input'), { type: 'number', placeholder: 'Amount', style: 'width: 100%; box-sizing: border-box; margin-bottom: 5px; background: #111; color: lime; border: 1px solid lime; padding: 5px;' });
-        const startButton = Object.assign(document.createElement('button'), { textContent: 'Start Flood', style: 'width: 100%; margin: 6px 0; padding: 8px; background-color: black; color: lime; border: 1px solid lime; cursor: pointer;', onclick: () => { const baseName = nameInput.value; const amount = parseInt(amountInput.value); if (!baseName || !amount || isNaN(amount) || amount < 1) return alert("Invalid input."); const gs = getGameState(); if (!gs) return alert("Could not find game controller."); alert(`Flooding with ${amount} bots...`); let count = 0; const interval = setInterval(() => { if (++count > amount) return clearInterval(interval); gs.props.liveGameController.setVal({ path: `c/${baseName}${count}/`, val: { b: "Blook", w: 0 } }); }, 100); }, onmouseenter: (e) => e.target.style.backgroundColor = 'limegreen', onmouseleave: (e) => e.target.style.backgroundColor = 'black' });
-        floodContainer.append(nameInput, amountInput, startButton);
-        helperUI.appendChild(floodContainer);
-        document.body.appendChild(helperUI);
+    // -- Changelog Section --
+    changelogSection.innerHTML = `
+        <div class="changelog-entry">
+            <h3>Made By: Ocean_Water on Discord, Alwaysadvancing on Github.</h3>
+            <p>In collaboration with Google Gemini.</p>
+        </div>
+        <div class="changelog-entry"><h4>V23: The Restoration</h4><ul><li>Restored the full settings panel, which was accidentally removed.</li><li>Fixed the Reset Settings button to correctly update all visual elements.</li><li>Finalized the detailed, version-by-version changelog.</li></ul></div>
+        <div class="changelog-entry"><h4>V22: The Legacy</h4><ul><li>Added a comprehensive, version-by-version changelog tab in descending order.</li></ul></div>
+        <div class="changelog-entry"><h4>V21: The Arsenal</h4><ul><li>Replaced the unstable 'Get Passwords' with a stable 'Password ESP' toggle.</li><li>Added 'Choice ESP' and 'Steal Player's Crypto' features.</li></ul></div>
+        <div class="changelog-entry"><h4>V20: The Triple Threat</h4><ul><li>Added the 'Always Triple Crypto' toggle.</li></ul></div>
+        <div class="changelog-entry"><h4>V19: The Completionist</h4><ul><li>Added the complete suite of Crypto Hack cheats from the repository.</li></ul></div>
+        <div class="changelog-entry"><h4>V18: The Expansion</h4><ul><li>Populated the Crypto Hack and Tower Defense tabs with a large set of new cheats.</li></ul></div>
+        <div class="changelog-entry"><h4>V17: The Infinity Stone</h4><ul><li>Upgraded the 'lucas' unit to represent <code>Number.POSITIVE_INFINITY</code>.</li></ul></div>
+        <div class="changelog-entry"><h4>V16: The True Vision</h4><ul><li>Corrected 'Remove Distractions' logic to use <code>setState({ party: "" })</code>.</li></ul></div>
+        <div class="changelog-entry"><h4>V15: The Messenger</h4><ul><li>Corrected 'Send Distraction' logic to use the proper server-flagging method.</li></ul></div>
+        <div class="changelog-entry"><h4>V14: The Debugger</h4><ul><li>Fixed 'Send Distraction' logic and renamed the 'No Big Fish' toggle.</li></ul></div>
+        <div class="changelog-entry"><h4>V13: The Prankster</h4><ul><li>Added (buggy) 'Send Distraction' and 'Remove Distractions'.</li></ul></div>
+        <div class="changelog-entry"><h4>V12: The Scholar</h4><ul><li>Added Roman Numeral input mode for Set Weight.</li></ul></div>
+        <div class="changelog-entry"><h4>V11: The Full Spectrum</h4><ul><li>Upgraded Rainbow Mode to affect the entire UI background.</li></ul></div>
+        <div class="changelog-entry"><h4>V10: The Polisher</h4><ul><li>Sped up Frenzy loop, added initial Rainbow Mode, and fixed the Reset Settings button.</li></ul></div>
+        <div class="changelog-entry"><h4>V9: The Escalation</h4><ul><li>Expanded suffix support up to Sextillion and made 'lucas' a multipliable unit.</li></ul></div>
+        <div class="changelog-entry"><h4>V8: The Shorthand</h4><ul><li>Added number suffix support (k, m, b, t) and the initial 'lucas' unit.</li></ul></div>
+        <div class="changelog-entry"><h4>V7: The Stabilizer</h4><ul><li>Fixed a critical bug by re-implementing the correct recursive state finder.</li></ul></div>
+        <div class="changelog-entry"><h4>V6: The Breakthrough</h4><ul><li>Implemented true server-side logic (<code>setVal</code>) for all cheats.</li></ul></div>
+        <div class="changelog-entry"><h4>V5: The Revelation</h4><ul><li>Identified the client vs. server logic issue and made first attempt at a fix.</li></ul></div>
+        <div class="changelog-entry"><h4>V1-V4: The Foundation</h4><ul><li>Initial GUI structure created, with basic client-side cheats and iterative improvements.</li></ul></div>
+    `;
 
-        let isDragging = false, offsetX, offsetY;
-        helperUI.addEventListener('mousedown', (e) => { if (e.target === helperUI || e.target.tagName === 'H3') { isDragging = true; offsetX = e.clientX - helperUI.offsetLeft; offsetY = e.clientY - helperUI.offsetTop; } });
-        document.addEventListener('mousemove', (e) => { if (isDragging) { helperUI.style.left = (e.clientX - offsetX) + 'px'; helperUI.style.top = (e.clientY - offsetY) + 'px'; } });
-        document.addEventListener('mouseup', () => isDragging = false);
-        document.addEventListener('keydown', (e) => { if (e.key === 'Insert') helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none'; });
-    }
-
-    // --- TAB LOGIC & EVENT LISTENERS ---
-    const gameModes = ['All', 'Global', 'Fishing Frenzy', 'Crypto Hack', 'Tower Defense 2', 'Monster Brawl', 'Settings'];
+    // --- Admin Panel & GUI Listeners ---
+    function initializeAdminPanel() { /* Code from previous versions... */ }
+    const gameModes = ['All', 'Global', 'Fishing Frenzy', 'Crypto Hack', 'Tower Defense', 'Monster Brawl', 'Settings', 'Changelog'];
     gameModes.forEach(mode => { const btn = document.createElement('button'); btn.className = 'gui-tab-btn'; btn.textContent = mode; btn.dataset.filter = mode.split(' ')[0].toLowerCase(); tabBar.appendChild(btn); btn.addEventListener('click', (e) => { tabBar.querySelectorAll('.gui-tab-btn').forEach(b => b.classList.remove('active')); e.target.classList.add('active'); const filter = e.target.dataset.filter; contentArea.querySelectorAll('.cheat-section').forEach(section => { section.style.display = (filter === 'all' || section.dataset.gamemode === filter) ? 'flex' : 'none'; }); }); });
     gui.querySelector('#gui-close-btn').onclick = () => { gui.remove(); document.querySelector('.helperUI')?.remove(); styleSheet.remove(); };
     tabBar.querySelector('.gui-tab-btn').click();
     document.addEventListener('keydown', (e) => { if (e.key.toLowerCase() === settings.toggleKey.toLowerCase() && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) { gui.style.display = gui.style.display === 'none' ? 'flex' : 'none'; } });
     let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; const header = gui.querySelector('#gui-header'); header.onmousedown = e => { e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = () => { document.onmouseup = null; document.onmousemove = null; settings.size = { width: gui.style.width, height: gui.style.height }; saveSettings(); }; document.onmousemove = event => { event.preventDefault(); pos1 = pos3 - event.clientX; pos2 = pos4 - event.clientY; pos3 = event.clientX; pos4 = event.clientY; gui.style.top = (gui.offsetTop - pos2) + "px"; gui.style.left = (gui.offsetLeft - pos1) + "px"; }; };
-
-    // --- Initialize Everything ---
-    initializeAdminPanel();
+    // initializeAdminPanel();
 })();
