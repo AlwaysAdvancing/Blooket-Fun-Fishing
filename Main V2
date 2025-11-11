@@ -202,8 +202,8 @@
     // -- Changelog Section --
     changelogSection.innerHTML = `
         <div class="changelog-entry">
-            <h3>Made By: Ocean_Water on Discord, Alwaysadvancing on Github.</h3>
-            <p>In collaboration with Google Gemini.</p>
+            <h3>Made By: Ocean_Water on Discord/Alwaysadvancing on Github.</h3>
+            <p>In collaboration with ...</p>
         </div>
         <div class="changelog-entry"><h4>V23: The Restoration</h4><ul><li>Restored the full settings panel, which was accidentally removed.</li><li>Fixed the Reset Settings button to correctly update all visual elements.</li><li>Finalized the detailed, version-by-version changelog.</li></ul></div>
         <div class="changelog-entry"><h4>V22: The Legacy</h4><ul><li>Added a comprehensive, version-by-version changelog tab in descending order.</li></ul></div>
