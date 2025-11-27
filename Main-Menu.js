@@ -1,3294 +1,442 @@
-(() => {
-{
-    // === HelperUI ===
-    const helperUI = document.createElement('div');
-    helperUI.style.position = 'fixed';
-    helperUI.style.top = '50px';
-    helperUI.style.right = '20px';
-    helperUI.style.width = '280px';
-    helperUI.style.maxHeight = '70vh';
-    helperUI.style.overflowY = 'auto';
-    helperUI.style.backgroundColor = 'rgba(0,0,0,0.85)';
-    helperUI.style.border = '2px solid lime';
-    helperUI.style.borderRadius = '8px';
-    helperUI.style.padding = '10px';
-    helperUI.style.zIndex = '999999';
-    helperUI.style.display = 'none';
-    helperUI.className = 'helperUI';
+(function() {
+    'use-strict';
 
-    const title = document.createElement('h3');
-    title.textContent = '👑 Helper UI';
-    title.style.color = 'lime';
-    title.style.textAlign = 'center';
-    helperUI.appendChild(title);
-
-    function createButton(text, onClick) {
-        const btn = document.createElement('button');
-        btn.textContent = text;
-        btn.style.width = '100%';
-        btn.style.margin = '6px 0';
-        btn.style.padding = '8px';
-        btn.style.backgroundColor = 'black';
-        btn.style.color = 'lime';
-        btn.style.border = '1px solid lime';
-        btn.style.cursor = 'pointer';
-        btn.addEventListener('mouseenter', () => btn.style.backgroundColor = 'limegreen');
-        btn.addEventListener('mouseleave', () => btn.style.backgroundColor = 'black');
-        btn.addEventListener('click', onClick);
-        return btn;
+    // ==========================================
+    // CORE CHEAT LOGIC
+    // ==========================================
+    
+    function getGameState() { try { const el = document.querySelector("#app"); if (!el) return null; const rk = Object.keys(el).find(k => k.startsWith("__reactContainer$")); if (!rk) return null; let n = el[rk]; while (n) { if (n.stateNode?.props?.liveGameController) return n.stateNode; n = n.child; } return null; } catch (e) { return null; } }
+    function getWorkingStateNode() { try { const reactNode = (function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); })(); return Object.values(reactNode)[1].children[0]._owner.stateNode; } catch (e) { return null; } }
+    
+    function findAndClickCorrectAnswer() { const gs = getGameState(); if (gs?.state?.question) { const correctAnswer = gs.state.question.correctAnswers[0]; document.querySelectorAll('[class*="answerContainer"]').forEach(b => { if(b.innerText === correctAnswer) b.click(); }); } }
+    
+    function parseWeight(input) { 
+        if (settings.romanMode) return romanToInt(input);
+        const raw = String(input).trim().toLowerCase(); 
+        const m = { 'lucas': Number.POSITIVE_INFINITY, 'sx': 1e21, 'qi': 1e18, 'q': 1e15, 't': 1e12, 'b': 1e9, 'm': 1e6, 'k': 1e3 }; 
+        for (const s of Object.keys(m).sort((a,b)=>b.length-a.length)) { if (raw.endsWith(s)) return Math.floor((parseFloat(raw.slice(0, -s.length)) || 1) * m[s]); } 
+        return parseFloat(raw) || NaN; 
     }
-
-    function createToggle(text, cheatObj) {
-        const btn = createButton(text, () => {
-            cheatObj.run();
-            btn.style.backgroundColor = cheatObj.enabled ? 'limegreen' : 'black';
-        });
-        return btn;
-    }
-
-    const setHostGreen = {
-        enabled: false,
-        data: null,
-        run: function () {
-            const getNode = () => {
-                const root = document.querySelector("#app");
-                let node = null;
-                function find(t = root) {
-                    if (node) return;
-                    const values = Object.values(t);
-                    for (const v of values) {
-                        if (v?._owner?.stateNode?.props?.liveGameController) {
-                            node = v._owner.stateNode;
-                            break;
-                        }
-                        if (v?.children) find(v.children[0]);
-                    }
-                }
-                find();
-                return node;
-            };
-            const stateNode = getNode();
-            if (!stateNode) return alert("Can't find game node");
-            if (this.enabled) {
-                clearInterval(this.data);
-                this.enabled = false;
-                this.data = null;
-                stateNode.props.liveGameController.setVal({
-                    path: `c/${stateNode.props.client.name}/cr`,
-                    val: ""
-                });
-            } else {
-                this.enabled = true;
-                this.data = setInterval(() => {
-                    stateNode.props.liveGameController.setVal({
-                        path: `c/${stateNode.props.client.name}/cr`,
-                        val: `999999999999999${new Array(999).fill("็".repeat(70)).join(" ")}`
-                    });
-                }, 25);
-            }
-        }
-    };
-
-    const removeNameLimit = () => {
-        Object.defineProperty(Object.prototype, 'name', { get() { return 'A'.repeat(999); }, configurable: true });
-        alert('Removed name character limit!');
-    };
-
-function floodGame() {
-    const baseName = prompt("Enter name for fake accounts:");
-    const amount = parseInt(prompt("Enter amount of fake accounts:"));
-    
-    if (!baseName || !amount || isNaN(amount) || amount < 1) {
-        alert("Please enter a valid name and number greater than zero.");
-        return;
-    }
-    
-    const root = document.querySelector("#app");
-    let node = null;
-    
-    function findNode(t = root) {
-        if (node) return;
-        const values = Object.values(t);
-        for (const v of values) {
-            if (v?._owner?.stateNode?.props?.liveGameController) {
-                node = v._owner.stateNode;
-                break;
-            }
-            if (v?.children) findNode(v.children[0]);
-        }
-    }
-    findNode();
-    
-    if (!node) {
-        alert("Unable to find the game controller node.");
-        return;
-    }
-    
-    alert(`Flood started for ${amount} accounts with base name '${baseName}'.`);
-    
-    // Flood: simulate fake account joins with small delay so it doesn't freeze
-    let count = 1;
-    const floodInterval = setInterval(() => {
-        if (count > amount) {
-            clearInterval(floodInterval);
-            alert(`Flood complete: ${amount} fake accounts joined.`);
-            return;
-        }
-        const fakeName = `${baseName}${count}`;
-        node.props.liveGameController.setVal({
-            path: `c/${fakeName}/join`,
-            val: true
-        });
-        count++;
-    }, 100);  // 100ms delay between each join to reduce overload
-}
-
-
-    const sendHackMessageTyped = () => {
-        const message = prompt("Enter a message to send to the host");
-        const root = document.querySelector("#app");
-        let node = null;
-        function find(t = root) {
-            if (node) return;
-            const values = Object.values(t);
-            for (const v of values) {
-                if (v?._owner?.stateNode?.props?.liveGameController) {
-                    node = v._owner.stateNode;
-                    break;
-                }
-                if (v?.children) find(v.children[0]);
-            }
-        }
-        find();
-        if (!node) return alert("Can't find game node");
-        node.props.liveGameController.setVal({
-            path: `c/${node.props.client.name}/msg`,
-            val: message || ""
-        });
-    };
-
-    const alwaysHack = {
-        enabled: false,
-        interval: null,
-        run: function () {
-            const getNode = () => {
-                const root = document.querySelector("#app");
-                let node = null;
-                function find(t = root) {
-                    if (node) return;
-                    const values = Object.values(t);
-                    for (const v of values) {
-                        if (v?._owner?.stateNode?.props?.liveGameController) {
-                            node = v._owner.stateNode;
-                            break;
-                        }
-                        if (v?.children) find(v.children[0]);
-                    }
-                }
-                find();
-                return node;
-            };
-            const node = getNode();
-            if (!node) return alert("Can't find game node");
-            if (this.enabled) {
-                clearInterval(this.interval);
-                this.enabled = false;
-            } else {
-                this.enabled = true;
-                this.interval = setInterval(() => {
-                    node.props.liveGameController.setVal({
-                        path: `c/${node.props.client.name}/hack`,
-                        val: true
-                    });
-                }, 100);
-            }
-        }
-    };
-
-    // Make the Admin menu draggable
-let isDragging = false;
-let offsetX, offsetY;
-
-helperUI.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    offsetX = e.clientX - helperUI.offsetLeft;
-    offsetY = e.clientY - helperUI.offsetTop;
-    helperUI.style.cursor = 'grabbing';
-});
-
-document.addEventListener('mousemove', (e) => {
-    if (isDragging) {
-        helperUI.style.left = (e.clientX - offsetX) + 'px';
-        helperUI.style.top = (e.clientY - offsetY) + 'px';
-        helperUI.style.right = 'auto';
-    }
-});
-
-document.addEventListener('mouseup', () => {
-    isDragging = false;
-    helperUI.style.cursor = 'grab';
-});
-
-
-    // === Append Buttons ===
-    helperUI.appendChild(createToggle("Set Host Screen Green", setHostGreen));
-    helperUI.appendChild(createButton("Remove Name Limit", removeNameLimit));
-    helperUI.appendChild(createButton("Flood Game", floodGame));
-
-    // Show only if in Crypto gamemode
-    if (window.location.href.includes("cryptohack")) {
-        helperUI.appendChild(createButton("Send Hack Message", sendHackMessageTyped));
-        helperUI.appendChild(createToggle("Always Hack", alwaysHack));
-    }
-
-    // === Show/hide with Insert and O keys ===
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Insert') {
-            helperUI.style.display = helperUI.style.display === 'none' ? 'block' : 'none';
-        } else if (e.key.toLowerCase() === 'o') {
-            if (document.activeElement.tagName !== 'INPUT') {
-                helperUI.style.display = 'none';
-            }
-        }
-    });
-
-    // Attach helper UI to body
-    document.body.appendChild(helperUI);
-}
-
-
-
-
-    
-    // Create mode selection popup
-    const modePopup = document.createElement('div');
-    modePopup.style.position = 'fixed';
-    modePopup.style.top = '50%';
-    modePopup.style.left = '50%';
-    modePopup.style.transform = 'translate(-50%, -50%)';
-    modePopup.style.zIndex = '9999';
-    modePopup.style.backgroundColor = 'rgba(40, 40, 50, 0.95)';
-    modePopup.style.borderRadius = '15px';
-    modePopup.style.padding = '20px';
-    modePopup.style.boxShadow = '0 0 20px rgba(0,0,0,0.7)';
-    modePopup.style.color = 'white';
-    modePopup.style.fontFamily = 'Arial, sans-serif';
-    modePopup.style.textAlign = 'center';
-    modePopup.style.width = '350px';
-    modePopup.style.height = 'auto';
-    modePopup.style.cursor = 'move';
-    modePopup.style.userSelect = 'none';
-
-    // Make mode selection draggable
-    let isDraggingModePopup = false;
-    let modePopupOffsetX, modePopupOffsetY;
-
-    modePopup.addEventListener('mousedown', (e) => {
-        if (e.target === modePopup || e.target.tagName === 'H2') {
-            isDraggingModePopup = true;
-            modePopupOffsetX = e.clientX - modePopup.getBoundingClientRect().left;
-            modePopupOffsetY = e.clientY - modePopup.getBoundingClientRect().top;
-            modePopup.style.cursor = 'grabbing';
-        }
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (isDraggingModePopup) {
-            modePopup.style.left = (e.clientX - modePopupOffsetX) + 'px';
-            modePopup.style.top = (e.clientY - modePopupOffsetY) + 'px';
-            modePopup.style.transform = 'none';
-        }
-    });
-
-    document.addEventListener('mouseup', () => {
-        isDraggingModePopup = false;
-        modePopup.style.cursor = 'move';
-    });
-
-    const title = document.createElement('h2');
-    title.textContent = 'Select Game Mode';
-    title.style.marginTop = '0';
-    title.style.color = '#4CAF50';
-    modePopup.appendChild(title);
-
-    const fishingBtn = document.createElement('button');
-    fishingBtn.textContent = 'Fishing Frenzy';
-    fishingBtn.style.width = '100%';
-    fishingBtn.style.padding = '12px';
-    fishingBtn.style.margin = '10px 0';
-    fishingBtn.style.borderRadius = '8px';
-    fishingBtn.style.border = 'none';
-    fishingBtn.style.backgroundColor = '#2196F3';
-    fishingBtn.style.color = 'white';
-    fishingBtn.style.fontSize = '16px';
-    fishingBtn.style.cursor = 'pointer';
-    fishingBtn.style.transition = 'all 0.3s';
-
-    fishingBtn.onmouseover = () => fishingBtn.style.backgroundColor = '#0b7dda';
-    fishingBtn.onmouseout = () => fishingBtn.style.backgroundColor = '#2196F3';
-    
-    const cryptoBtn = document.createElement('button');
-    cryptoBtn.textContent = 'Crypto Hack';
-    cryptoBtn.style.width = '100%';
-    cryptoBtn.style.padding = '12px';
-    cryptoBtn.style.margin = '10px 0';
-    cryptoBtn.style.borderRadius = '8px';
-    cryptoBtn.style.border = 'none';
-    cryptoBtn.style.backgroundColor = '#FF9800';
-    cryptoBtn.style.color = 'white';
-    cryptoBtn.style.fontSize = '16px';
-    cryptoBtn.style.cursor = 'pointer';
-    cryptoBtn.style.transition = 'all 0.3s';
-
-    cryptoBtn.onmouseover = () => cryptoBtn.style.backgroundColor = '#e68a00';
-    cryptoBtn.onmouseout = () => cryptoBtn.style.backgroundColor = '#FF9800';
-
-    // Add Tower Defense 2 button
-
-    const td2Btn = document.createElement('button');
-    td2Btn.textContent = 'Tower Defense 2';
-    td2Btn.style.width = '100%';
-    td2Btn.style.padding = '12px';
-    td2Btn.style.margin = '10px 0';
-    td2Btn.style.borderRadius = '8px';
-    td2Btn.style.border = 'none';
-    td2Btn.style.backgroundColor = '#9C27B0';
-    td2Btn.style.color = 'white';
-    td2Btn.style.fontSize = '16px';
-    td2Btn.style.cursor = 'pointer';
-    td2Btn.style.transition = 'all 0.3s';
-
-    td2Btn.onmouseover = () => td2Btn.style.backgroundColor = '#7B1FA2';
-    td2Btn.onmouseout = () => td2Btn.style.backgroundColor = '#9C27B0';
-
-    // Add Battle Royale button
-    function createBattleRoyaleMenu() {
-    if (currentMenu) currentMenu.remove();
-    const menu = document.createElement('div');
-    menu.style.position = 'fixed';
-    menu.style.top = '10px';
-    menu.style.right = '10px';
-    menu.style.zIndex = '9999';
-    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
-    menu.style.borderRadius = '10px';
-    menu.style.padding = '10px';
-    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-    menu.style.color = 'white';
-    menu.style.fontFamily = 'Arial, sans-serif';
-    menu.style.cursor = 'move';
-    menu.style.userSelect = 'none';
-    menu.style.resize = 'both';
-    menu.style.overflow = 'auto';
-    menu.style.width = '350px';
-    menu.style.height = '450px';
-    menu.style.maxHeight = '80vh';
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-
- 
-        
-    currentMenu = menu;
-
-    // Draggable logic (same as TD2)
-    let isDragging = false, offsetX, offsetY;
-    menu.addEventListener('mousedown', e => {
-        if (e.target === menu || e.target.tagName === 'H3') {
-            isDragging = true;
-            offsetX = e.clientX - menu.getBoundingClientRect().left;
-            offsetY = e.clientY - menu.getBoundingClientRect().top;
-            menu.style.cursor = 'grabbing';
-        }
-    });
-    document.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        menu.style.left = (e.clientX - offsetX) + 'px';
-        menu.style.top = (e.clientY - offsetY) + 'px';
-        menu.style.right = 'unset';
-    });
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        menu.style.cursor = 'move';
-    });
-
-    const title = document.createElement('h3');
-    title.textContent = 'Battle Royale Cheats (Press K to hide/show)';
-    title.style.margin = '0 0 10px 0';
-    title.style.textAlign = 'center';
-    title.style.color = '#2196F3';
-    menu.appendChild(title);
-
-    const addDivider = (label) => {
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.margin = '10px 0';
-        const hr = document.createElement('hr');
-        hr.style.flex = '1';
-        hr.style.border = '1px solid #555';
-        hr.style.margin = '0 5px';
-        const span = document.createElement('span');
-        span.textContent = label;
-        span.style.color = '#aaa';
-        span.style.fontSize = '12px';
-        span.style.fontWeight = 'bold';
-        container.appendChild(hr);
-        container.appendChild(span);
-        container.appendChild(hr.cloneNode());
-        menu.appendChild(container);
-    };
-
-    // GAME DIVIDER
-    addDivider('Game');
-    const autoAnswerBtn = document.createElement('button');
-    autoAnswerBtn.textContent = 'Auto Answer';
-    autoAnswerBtn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#2196F3;color:white;font-weight:bold;transition:all 0.3s;';
-    autoAnswerBtn.onclick = () => {
-        const cheat = async () => {
-            const { stateNode } = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner;
-            const Question = stateNode.state.question || stateNode.props.client.question;
-            if (stateNode.state.question.qType != "typing") {
-                if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
-                    let ind;
-                    for (ind = 0; ind < Question.answers.length; ind++) {
-                        if (Question.correctAnswers.includes(Question.answers[ind])) break;
-                    }
-                    document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-            } else {
-                Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-            }
-        };
-        setInterval(cheat, 50);
-    };
-    menu.appendChild(autoAnswerBtn);
-
-    // OTHER DIVIDER
-    addDivider('Other');
-    const otherCheats = [
-        { name: 'All Answers Correct', func: () => {
-            const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
-            for (let i = 0; i < stateNode.questions.length; i++) {
-                const q = stateNode.questions[i];
-                q.correctAnswers = [...q.answers];
-            }
-            if (stateNode.props.liveGameController) {
-                stateNode.props.liveGameController.setVal({
-                    path: 'questions',
-                    val: stateNode.questions.map(q => ({
-                        ...q,
-                        correctAnswers: [...q.answers]
-                    }))
-                });
-            }
-        }},
-        { name: 'Use Any Blook', func: () => alert('Placeholder: Use Any Blook') },
-        { name: 'Change Blook', func: () => alert('Placeholder: Change Blook') },
-        { name: 'Set Flappy Score', func: () => alert('Placeholder: Set Flappy Score') },
-        { name: 'Toggle Ghost Mode', func: () => alert('Placeholder: Toggle Ghost Mode') }
-    ];
-
-    otherCheats.forEach(c => {
-        const btn = document.createElement('button');
-        btn.textContent = c.name;
-        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#4CAF50;color:white;font-weight:bold;transition:all 0.3s;';
-        btn.onclick = c.func;
-        menu.appendChild(btn);
-    });
-
-    // CLOSE BUTTON
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = 'Close Menu';
-    closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
-    closeBtn.onclick = () => menu.remove();
-    menu.appendChild(closeBtn);
-
-    document.body.appendChild(menu);
-}
-
-const battleRoyaleBtn = document.createElement('button');
-    battleRoyaleBtn.textContent = 'Battle Royale';
-    battleRoyaleBtn.style.width = '100%';
-    battleRoyaleBtn.style.padding = '12px';
-    battleRoyaleBtn.style.margin = '10px 0';
-    battleRoyaleBtn.style.borderRadius = '8px';
-    battleRoyaleBtn.style.border = 'none';
-    battleRoyaleBtn.style.backgroundColor = '#E91E63';
-    battleRoyaleBtn.style.color = 'white';
-    battleRoyaleBtn.style.fontSize = '16px';
-    battleRoyaleBtn.style.cursor = 'pointer';
-    battleRoyaleBtn.style.transition = 'all 0.3s';
-    
-    battleRoyaleBtn.onmouseover = () => battleRoyaleBtn.style.backgroundColor = '#C2185B';
-    battleRoyaleBtn.onmouseout = () => battleRoyaleBtn.style.backgroundColor = '#E91E63';
-
-    // Add Monster Brawl button
-    const monsterBrawlBtn = document.createElement('button');
-    monsterBrawlBtn.textContent = 'Monster Brawl';
-    monsterBrawlBtn.style.width = '100%';
-    monsterBrawlBtn.style.padding = '12px';
-    monsterBrawlBtn.style.margin = '10px 0';
-    monsterBrawlBtn.style.borderRadius = '8px';
-    monsterBrawlBtn.style.border = 'none';
-    monsterBrawlBtn.style.backgroundColor = '#795548';
-    monsterBrawlBtn.style.color = 'white';
-    monsterBrawlBtn.style.fontSize = '16px';
-    monsterBrawlBtn.style.cursor = 'pointer';
-    monsterBrawlBtn.style.transition = 'all 0.3s';
-
-    monsterBrawlBtn.onmouseover = () => monsterBrawlBtn.style.backgroundColor = '#5D4037';
-    monsterBrawlBtn.onmouseout = () => monsterBrawlBtn.style.backgroundColor = '#795548';
-
-
-
-    // Global menu reference for K key toggle
-    let currentMenu = null;
-
-    // Function to handle K key press
-    const handleKeyPress = (e) => {
-        if (e.key.toLowerCase() === 'k' && currentMenu) {
-            currentMenu.style.display = currentMenu.style.display === 'none' ? 'block' : 'none';
-        }
-    };
-    document.addEventListener('keydown', handleKeyPress);
-
-    // Helper function to get state node
-    const getStateNode = () => {
-        return Object.values((function react(r = document.querySelector("body>div")) { 
-            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-        })())[1].children[0]._owner.stateNode;
-    };
-
-    // Function to create the Fishing menu
-    const createFishingMenu = () => {
-        modePopup.remove();
-        
-        const menu = document.createElement('div');
-        menu.style.position = 'fixed';
-        menu.style.top = '10px';
-        menu.style.right = '10px';
-        menu.style.zIndex = '9999';
-        menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
-        menu.style.borderRadius = '10px';
-        menu.style.padding = '10px';
-        menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-        menu.style.color = 'white';
-        menu.style.fontFamily = 'Arial, sans-serif';
-        menu.style.cursor = 'move';
-        menu.style.userSelect = 'none';
-        menu.style.resize = 'both';
-        menu.style.overflow = 'auto';
-        menu.style.width = '350px';
-        menu.style.height = '450px';
-        menu.style.maxHeight = '80vh';
-        menu.style.display = 'flex';
-        menu.style.flexDirection = 'column';
-
-     
-        
-        // Set as current menu
-        currentMenu = menu;
-        
-        // Make menu draggable
-        let isDragging = false;
-        let offsetX, offsetY;
-        
-        menu.addEventListener('mousedown', (e) => {
-            if (e.target === menu || e.target.tagName === 'H3') {
-                isDragging = true;
-                offsetX = e.clientX - menu.getBoundingClientRect().left;
-                offsetY = e.clientY - menu.getBoundingClientRect().top;
-                menu.style.cursor = 'grabbing';
-            }
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            menu.style.left = (e.clientX - offsetX) + 'px';
-            menu.style.top = (e.clientY - offsetY) + 'px';
-            menu.style.right = 'unset';
-        });
-        
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-            menu.style.cursor = 'move';
-        });
-
-        // Add resize handles (all corners)
-        const createResizeHandle = (position) => {
-            const resizeHandle = document.createElement('div');
-            resizeHandle.style.position = 'fixed';
-            resizeHandle.style.width = '20px';
-            resizeHandle.style.height = '20px';
-            resizeHandle.style.cursor = position.includes('right') ? 
-                (position.includes('bottom') ? 'nwse-resize' : 'nesw-resize') :
-                (position.includes('bottom') ? 'nesw-resize' : 'nwse-resize');
-            
-            if (position.includes('right')) resizeHandle.style.right = '0';
-            else resizeHandle.style.left = '0';
-            if (position.includes('bottom')) resizeHandle.style.bottom = '0';
-            else resizeHandle.style.top = '0';
-
-            resizeHandle.style.backgroundColor = 'rgba(255,255,255,0.3)';
-            resizeHandle.style.borderRadius = position.includes('right') ? 
-                (position.includes('bottom') ? '0 0 5px 0' : '0 5px 0 0') :
-                (position.includes('bottom') ? '0 0 0 5px' : '5px 0 0 0');
-            
-            let isResizing = false;
-            let startX, startY, startWidth, startHeight, startTop, startLeft;
-            
-            resizeHandle.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startWidth = parseInt(document.defaultView.getComputedStyle(menu).width, 10);
-                startHeight = parseInt(document.defaultView.getComputedStyle(menu).height, 10);
-                startTop = parseInt(document.defaultView.getComputedStyle(menu).top, 10);
-                startLeft = parseInt(document.defaultView.getComputedStyle(menu).left, 10);
-                e.preventDefault();
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-                
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-
-                if (position.includes('right')) {
-                    menu.style.width = (startWidth + deltaX) + 'px';
-                } else {
-                    menu.style.width = (startWidth - deltaX) + 'px';
-                    menu.style.left = (startLeft + deltaX) + 'px';
-                }
-
-                if (position.includes('bottom')) {
-                    menu.style.height = (startHeight + deltaY) + 'px';
-                } else {
-                    menu.style.height = (startHeight - deltaY) + 'px';
-                    menu.style.top = (startTop + deltaY) + 'px';
-                }
-                
-                const buttons = menu.querySelectorAll('button');
-                buttons.forEach(btn => {
-                    btn.style.width = '100%';
-                    btn.style.padding = `${Math.max(6, parseInt(menu.style.height, 10)/30)}px`;
-                });
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isResizing = false;
-            });
-            
-            return resizeHandle;
-        };
-        
-        // Create a container for resize handles
-        const resizeContainer = document.createElement('div');
-        resizeContainer.style.position = 'sticky';
-        resizeContainer.style.bottom = '0';
-        resizeContainer.style.width = '100%';
-        resizeContainer.style.height = '20px';
-        resizeContainer.style.zIndex = '10000';
-        
-        // Add all 4 resize handles
-        resizeContainer.appendChild(createResizeHandle('top-left'));
-        resizeContainer.appendChild(createResizeHandle('top-right'));
-        resizeContainer.appendChild(createResizeHandle('bottom-left'));
-        resizeContainer.appendChild(createResizeHandle('bottom-right'));
-        menu.appendChild(resizeContainer);
-        
-        // Menu title
-        const title = document.createElement('h3');
-        title.textContent = 'Fishing Frenzy Cheats (Press K to hide/show)';
-        title.style.margin = '0 0 10px 0';
-        title.style.textAlign = 'center';
-        title.style.color = '#2196F3';
-        menu.appendChild(title);
-
-        // Set up fetch interception
-        let iframe = document.querySelector("iframe");
-        if (!iframe) {
-            iframe = document.createElement("iframe");
-            iframe.style.display = "none";
-            document.body.append(iframe);
-        }
-
-        if (window.fetch && window.fetch.call.toString() === 'function call() { [native code] }') {
-            const call = window.fetch.call;
-            window.fetch.call = function () {
-                if (!arguments[1] || !arguments[1].includes("s.blooket.com/rc")) {
-                    return call.apply(this, arguments);
-                }
-            };
-        }
-
-        // Add "Game" divider at the top
-        const gameDividerContainer = document.createElement('div');
-        gameDividerContainer.style.display = 'flex';
-        gameDividerContainer.style.alignItems = 'center';
-        gameDividerContainer.style.margin = '10px 0';
-        
-        const gameDivider = document.createElement('hr');
-        gameDivider.style.flex = '1';
-        gameDivider.style.border = '1px solid #555';
-        gameDivider.style.margin = '0 5px';
-        
-        const gameLabel = document.createElement('span');
-        gameLabel.textContent = 'Game';
-        gameLabel.style.color = '#aaa';
-        gameLabel.style.fontSize = '12px';
-        gameLabel.style.fontWeight = 'bold';
-        
-        gameDividerContainer.appendChild(gameDivider);
-        gameDividerContainer.appendChild(gameLabel);
-        gameDividerContainer.appendChild(gameDivider.cloneNode());
-        
-        menu.appendChild(gameDividerContainer);
-
-        // Auto Answer cheat
-        const autoAnswerCheat = {
-            name: 'Auto Answer',
-            active: false,
-            interval: null,
-            func: () => {
-                const cheat = (async () => {
-                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
-                    const Question = stateNode.state.question || stateNode.props.client.question;
-                    if (stateNode.state.question.qType != "typing") {
-                        if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
-                            let ind;
-                            for (ind = 0; ind < Question.answers.length; ind++) {
-                                let found = false;
-                                for (let j = 0; j < Question.correctAnswers.length; j++)
-                                    if (Question.answers[ind] == Question.correctAnswers[j]) {
-                                        found = true;
-                                        break;
-                                    }
-                                if (found) break;
-                            }
-                            document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                        } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-                    } else Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-                });
-                cheat();
-            }
-        };
-
-        // Create Auto Answer button
-        const autoAnswerBtn = document.createElement('button');
-        autoAnswerBtn.textContent = autoAnswerCheat.name;
-        autoAnswerBtn.style.display = 'block';
-        autoAnswerBtn.style.width = '100%';
-        autoAnswerBtn.style.padding = '8px';
-        autoAnswerBtn.style.margin = '5px 0';
-        autoAnswerBtn.style.borderRadius = '5px';
-        autoAnswerBtn.style.border = 'none';
-        autoAnswerBtn.style.cursor = 'pointer';
-        autoAnswerBtn.style.backgroundColor = '#2196F3';
-        autoAnswerBtn.style.color = 'white';
-        autoAnswerBtn.style.fontWeight = 'bold';
-        autoAnswerBtn.style.transition = 'all 0.3s';
-        
-        autoAnswerBtn.onmouseover = () => autoAnswerBtn.style.backgroundColor = '#0b7dda';
-        autoAnswerBtn.onmouseout = () => autoAnswerBtn.style.backgroundColor = autoAnswerCheat.active ? '#0b7dda' : '#2196F3';
-        
-        autoAnswerBtn.onclick = () => {
-            if (autoAnswerCheat.active && autoAnswerCheat.interval) {
-                clearInterval(autoAnswerCheat.interval);
-                autoAnswerCheat.active = false;
-                autoAnswerBtn.style.backgroundColor = '#2196F3';
-            } else {
-                autoAnswerCheat.interval = setInterval(autoAnswerCheat.func, 500);
-                autoAnswerCheat.active = true;
-                autoAnswerBtn.style.backgroundColor = '#0b7dda';
-            }
-        };
-        
-        menu.appendChild(autoAnswerBtn);
-
-        // Fishing-specific cheats
-        const fishingCheats = {
-            fishingFrenzy: {
-                name: 'Fishing Frenzy',
-                active: false,
-                interval: null,
-                func: () => {
-                    try {
-                        let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner;
-                        stateNode.props.liveGameController.setVal({
-                            path: `c/${stateNode.props.client.name}`,
-                            val: {
-                                b: stateNode.props.client.blook,
-                                w: stateNode.state.weight,
-                                f: "Frenzy",
-                                s: true
-                            }
-                        });
-                    } catch (e) {
-                        console.error("Fishing Frenzy error:", e);
-                    }
-                }
-            },
-            setLure: {
-                name: 'Set Lure',
-                active: false,
-                expanded: false,
-                buttons: [],
-                arrow: null,
-                func: function() {
-                    try {
-                        let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner;
-                        
-                        // Create arrow indicator if it doesn't exist
-                        if (!this.arrow) {
-                            this.arrow = document.createElement('span');
-                            this.arrow.innerHTML = '▼';
-                            this.arrow.style.position = 'absolute';
-                            this.arrow.style.right = '10px';
-                            this.arrow.style.pointerEvents = 'none';
-                            this.arrow.style.transition = 'transform 0.3s';
-                            setLureBtn.appendChild(this.arrow);
-                        }
-
-                        if (!this.expanded) {
-                            // Create lure level buttons (1-5 in UI, 0-4 in code) in reverse order
-                            for (let i = 5; i >= 1; i--) {
-                                const lureBtn = document.createElement('button');
-                                lureBtn.textContent = `Lure Level ${i}`;
-                                lureBtn.style.display = 'block';
-                                lureBtn.style.width = '100%';
-                                lureBtn.style.padding = '8px';
-                                lureBtn.style.margin = '5px 0';
-                                lureBtn.style.borderRadius = '5px';
-                                lureBtn.style.border = 'none';
-                                lureBtn.style.cursor = 'pointer';
-                                lureBtn.style.backgroundColor = '#1E88E5';
-                                lureBtn.style.color = 'white';
-                                lureBtn.style.fontWeight = 'bold';
-                                lureBtn.style.transition = 'all 0.3s';
-                                lureBtn.style.opacity = '0';
-                                lureBtn.style.transform = 'translateY(-10px)';
-                                
-                                lureBtn.onmouseover = () => lureBtn.style.backgroundColor = '#0b7dda';
-                                lureBtn.onmouseout = () => lureBtn.style.backgroundColor = '#1E88E5';
-                                
-                                lureBtn.onclick = () => {
-                                    stateNode.setState({ lure: i-1 });
-                                    // Hide the lure buttons with animation
-                                    this.buttons.forEach(btn => {
-                                        btn.style.opacity = '0';
-                                        btn.style.transform = 'translateY(-10px)';
-                                        setTimeout(() => btn.remove(), 300);
-                                    });
-                                    this.buttons = [];
-                                    this.expanded = false;
-                                    if (this.arrow) {
-                                        this.arrow.style.transform = 'rotate(0deg)';
-                                    }
-                                };
-                                
-                                // Insert after the Set Lure button
-                                setLureBtn.parentNode.insertBefore(lureBtn, setLureBtn.nextSibling);
-                                this.buttons.push(lureBtn);
-                                
-                                // Animate in
-                                setTimeout(() => {
-                                    lureBtn.style.opacity = '1';
-                                    lureBtn.style.transform = 'translateY(0)';
-                                }, 10);
-                            }
-                            this.expanded = true;
-                            if (this.arrow) {
-                                this.arrow.style.transform = 'rotate(180deg)';
-                            }
-                        } else {
-                            // Hide the lure buttons with animation
-                            this.buttons.forEach(btn => {
-                                btn.style.opacity = '0';
-                                btn.style.transform = 'translateY(-10px)';
-                                setTimeout(() => btn.remove(), 300);
-                            });
-                            this.buttons = [];
-                            this.expanded = false;
-                            if (this.arrow) {
-                                this.arrow.style.transform = 'rotate(0deg)';
-                            }
-                        }
-                        
-                        return true;
-                    } catch (e) {
-                        console.error("Set Lure error:", e);
-                        return false;
-                    }
-                }
-            },
-            setWeight: {
-                name: 'Set Weight',
-                active: false,
-                func: () => {
-                    try {
-                        const parseWeightInput = (input) => {
-                            input = (input || "0").trim().toUpperCase();
-                            const multiplier = {
-                                'K': 1000,
-                                'M': 1000000,
-                                'B': 1000000000,
-                                'T': 1000000000000
-                            }[input.slice(-1)] || 1;
-                            
-                            const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
-                            return Math.round(numberPart * multiplier);
-                        };
-
-                        let i = document.createElement('iframe');
-                        document.body.append(i);
-                        window.prompt = i.contentWindow.prompt.bind(window);
-                        i.remove();
-                        
-                        const weight = parseWeightInput(
-                            prompt("How much weight would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
-                        );
-
-                        let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                            return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                        })())[1].children[0]._owner;
-                        
-                        stateNode.setState({ weight, weight2: weight });
-                        stateNode.props.liveGameController.setVal({
-                            path: `c/${stateNode.props.client.name}`,
-                            val: {
-                                b: stateNode.props.client.blook,
-                                w: weight,
-                                f: ["Crab", "Jellyfish", "Frog", "Pufferfish", "Octopus", "Narwhal", "Megalodon", "Blobfish", "Baby Shark"][Math.floor(Math.random() * 9)]
-                            }
-                        });
-                    } catch (e) {
-                        console.error("Set Weight error:", e);
-                    }
-                }
-            }
-        };
-
-        // Create buttons for each fishing cheat
-        Object.keys(fishingCheats).forEach(key => {
-            const cheat = fishingCheats[key];
-            const btn = document.createElement('button');
-            btn.textContent = cheat.name;
-            btn.style.display = 'block';
-            btn.style.width = '100%';
-            btn.style.padding = '8px';
-            btn.style.margin = '5px 0';
-            btn.style.borderRadius = '5px';
-            btn.style.border = 'none';
-            btn.style.cursor = 'pointer';
-            btn.style.backgroundColor = '#2196F3';
-            btn.style.color = 'white';
-            btn.style.fontWeight = 'bold';
-            btn.style.transition = 'all 0.3s';
-            btn.style.position = 'relative';
-            
-            btn.onmouseover = () => btn.style.backgroundColor = '#0b7dda';
-            btn.onmouseout = () => btn.style.backgroundColor = cheat.active ? '#0b7dda' : '#2196F3';
-            
-            btn.onclick = () => {
-                if (cheat.active && cheat.interval) {
-                    clearInterval(cheat.interval);
-                    cheat.active = false;
-                    btn.style.backgroundColor = '#2196F3';
-                } else {
-                    if (key === 'fishingFrenzy') {
-                        cheat.interval = setInterval(cheat.func, 100);
-                    } else {
-                        cheat.func();
-                        if (!cheat.interval) return;
-                    }
-                    cheat.active = true;
-                    btn.style.backgroundColor = '#0b7dda';
-                }
-            };
-            
-            menu.appendChild(btn);
-            
-            // Store reference to Set Lure button for arrow
-            if (key === 'setLure') {
-                setLureBtn = btn;
-                // Immediately add the arrow indicator
-                const arrow = document.createElement('span');
-                arrow.innerHTML = '▼';
-                arrow.style.position = 'absolute';
-                arrow.style.right = '10px';
-                arrow.style.pointerEvents = 'none';
-                arrow.style.transition = 'transform 0.3s';
-                btn.appendChild(arrow);
-                cheat.arrow = arrow;
-            }
-        });
-
-        // Add "Other" divider
-        const otherDividerContainer = document.createElement('div');
-        otherDividerContainer.style.display = 'flex';
-        otherDividerContainer.style.alignItems = 'center';
-        otherDividerContainer.style.margin = '10px 0';
-        
-        const otherDivider = document.createElement('hr');
-        otherDivider.style.flex = '1';
-        otherDivider.style.border = '1px solid #555';
-        otherDivider.style.margin = '0 5px';
-        
-        const otherLabel = document.createElement('span');
-        otherLabel.textContent = 'Other';
-        otherLabel.style.color = '#aaa';
-        otherLabel.style.fontSize = '12px';
-        otherLabel.style.fontWeight = 'bold';
-        
-        otherDividerContainer.appendChild(otherDivider);
-        otherDividerContainer.appendChild(otherLabel);
-        otherDividerContainer.appendChild(otherDivider.cloneNode());
-        
-        menu.appendChild(otherDividerContainer);
-
-        // Add "All Answers Correct" button (now with looping)
-        const allAnswersCorrectBtn = document.createElement('button');
-        allAnswersCorrectBtn.textContent = 'All Answers Correct (Global)';
-        allAnswersCorrectBtn.style.display = 'block';
-        allAnswersCorrectBtn.style.width = '100%';
-        allAnswersCorrectBtn.style.padding = '8px';
-        allAnswersCorrectBtn.style.margin = '5px 0';
-        allAnswersCorrectBtn.style.borderRadius = '5px';
-        allAnswersCorrectBtn.style.border = 'none';
-        allAnswersCorrectBtn.style.cursor = 'pointer';
-        allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-        allAnswersCorrectBtn.style.color = 'white';
-        allAnswersCorrectBtn.style.fontWeight = 'bold';
-        allAnswersCorrectBtn.style.transition = 'all 0.3s';
-        
-        let allAnswersInterval = null;
-        
-        allAnswersCorrectBtn.onmouseover = () => allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-        allAnswersCorrectBtn.onmouseout = () => allAnswersCorrectBtn.style.backgroundColor = allAnswersInterval ? '#388E3C' : '#4CAF50';
-        
-        allAnswersCorrectBtn.onclick = () => {
-            if (allAnswersInterval) {
-                clearInterval(allAnswersInterval);
-                allAnswersInterval = null;
-                allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-                return;
-            }
-            
-            const updateAllAnswers = () => {
-                const stateNode = getStateNode();
-                
-                // Modify local questions
-                for (let i = 0; i < stateNode.freeQuestions.length; i++) {
-                    stateNode.freeQuestions[i].correctAnswers = [...stateNode.freeQuestions[i].answers];
-                    stateNode.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-                    stateNode.props.client.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-                }
-
-                // Force update for all players via Firebase
-                if (stateNode.props.liveGameController) {
-                    stateNode.props.liveGameController.setVal({
-                        path: 'questions',
-                        val: stateNode.questions.map(q => ({
-                            ...q,
-                            correctAnswers: [...q.answers]
-                        }))
-                    });
-                }
-
-                try {
-                    stateNode.forceUpdate();
-                } catch {}
-            };
-            
-            updateAllAnswers(); // Run immediately
-            allAnswersInterval = setInterval(updateAllAnswers, 3000); // Then every 3 seconds
-            allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-        };
-        
-        menu.appendChild(allAnswersCorrectBtn);
-
-        // Add "Custom Name (Ignore Random name)" button
-        const customNameBtn = document.createElement('button');
-        customNameBtn.textContent = 'Custom Name (Ignore Random name)';
-        customNameBtn.style.display = 'block';
-        customNameBtn.style.width = '100%';
-        customNameBtn.style.padding = '8px';
-        customNameBtn.style.margin = '5px 0';
-        customNameBtn.style.borderRadius = '5px';
-        customNameBtn.style.border = 'none';
-        customNameBtn.style.cursor = 'pointer';
-        customNameBtn.style.backgroundColor = '#4CAF50';
-        customNameBtn.style.color = 'white';
-        customNameBtn.style.fontWeight = 'bold';
-        customNameBtn.style.transition = 'all 0.3s';
-        
-        customNameBtn.onmouseover = () => customNameBtn.style.backgroundColor = '#388E3C';
-        customNameBtn.onmouseout = () => customNameBtn.style.backgroundColor = '#4CAF50';
-        
-        customNameBtn.onclick = () => {
-            getStateNode().setState({ isRandom: false, client: { name: "" } });
-            document.querySelector('[class*="nameInput"]')?.focus?.();
-        };
-        
-        menu.appendChild(customNameBtn);
-
-        // Add "Lobby" divider
-        const lobbyDividerContainer = document.createElement('div');
-        lobbyDividerContainer.style.display = 'flex';
-        lobbyDividerContainer.style.alignItems = 'center';
-        lobbyDividerContainer.style.margin = '10px 0';
-        
-        const lobbyDivider = document.createElement('hr');
-        lobbyDivider.style.flex = '1';
-        lobbyDivider.style.border = '1px solid #555';
-        lobbyDivider.style.margin = '0 5px';
-        
-        const lobbyLabel = document.createElement('span');
-        lobbyLabel.textContent = 'Lobby';
-        lobbyLabel.style.color = '#aaa';
-        lobbyLabel.style.fontSize = '12px';
-        lobbyLabel.style.fontWeight = 'bold';
-        
-        lobbyDividerContainer.appendChild(lobbyDivider);
-        lobbyDividerContainer.appendChild(lobbyLabel);
-        lobbyDividerContainer.appendChild(lobbyDivider.cloneNode());
-        
-        menu.appendChild(lobbyDividerContainer);
-
-        // Add special cheats in new order with Change Blook first
-        const specialCheats = [
-            {
-                name: 'Change Blook',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
-                    props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
-                }
-            },
-            {
-                name: 'Use Any Blook',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.alert = i.contentWindow.alert.bind(window);
-                    i.remove();
-                    let blooks;
-                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
-                    const lobby = window.location.pathname.startsWith("/play/lobby"),
-                        dashboard = !lobby && window.location.pathname.startsWith("/blooks");
-                    if (dashboard || lobby) {
-                        let blooks, key = lobby ? "keys" : "entries";
-                        const old = Object[key];
-                        Object[key] = function (obj) {
-                            if (!obj.Chick) return old.call(this, obj);
-                            blooks = obj;
-                            return (Object[key] = old).call(this, obj);
-                        };
-                        stateNode.render();
-                        if (lobby) stateNode.setState({ unlocks: Object.keys(blooks) });
-                        else stateNode.setState({ blookData: Object.keys(blooks).reduce((a, b) => (a[b] = (stateNode.state.blookData[b] || 1), a), {}), allSets: Object.values(blooks).reduce((a, b) => (b.set && a.includes(b.set) ? a : a.concat(b.set)), []) });
-                    } else alert("This only works in lobbies or the dashboard blooks page.");
-                }
-            },
-            {
-                name: 'Set Flappy Score',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
-                }
-            },
-            {
-                name: 'Toggle Ghost Mode',
-                func: () => {
-                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[0].current.config.sceneConfig.physics.world.bodies.entries.forEach(x => {
-                        if (!x.gameObject.frame.texture.key.startsWith("blook")) return;
-                        x.checkCollision.none = x.gameObject.alpha == 1;
-                        x.gameObject.setAlpha(x.gameObject.alpha == 1 ? 0.5 : 1);
-                    });
-                }
-            }
-        ];
-
-        // Create buttons for special cheats
-        specialCheats.forEach(cheat => {
-            const btn = document.createElement('button');
-            btn.textContent = cheat.name;
-            btn.style.display = 'block';
-            btn.style.width = '100%';
-            btn.style.padding = '8px';
-            btn.style.margin = '5px 0';
-            btn.style.borderRadius = '5px';
-            btn.style.border = 'none';
-            btn.style.cursor = 'pointer';
-            btn.style.backgroundColor = '#9C27B0';
-            btn.style.color = 'white';
-            btn.style.fontWeight = 'bold';
-            btn.style.transition = 'all 0.3s';
-            
-            btn.onmouseover = () => btn.style.backgroundColor = '#7B1FA2';
-            btn.onmouseout = () => btn.style.backgroundColor = '#9C27B0';
-            
-            btn.onclick = () => {
-                cheat.func();
-            };
-            
-            menu.appendChild(btn);
-        });
-
-        // Add divider with "Menu Settings" label
-        const settingsDividerContainer = document.createElement('div');
-        settingsDividerContainer.style.display = 'flex';
-        settingsDividerContainer.style.alignItems = 'center';
-        settingsDividerContainer.style.margin = '10px 0';
-        
-        const settingsDivider = document.createElement('hr');
-        settingsDivider.style.flex = '1';
-        settingsDivider.style.border = '1px solid #555';
-        settingsDivider.style.margin = '0 5px';
-        
-        const settingsLabel = document.createElement('span');
-        settingsLabel.textContent = 'Menu Settings';
-        settingsLabel.style.color = '#aaa';
-        settingsLabel.style.fontSize = '12px';
-        settingsLabel.style.fontWeight = 'bold';
-        
-        settingsDividerContainer.appendChild(settingsDivider);
-        settingsDividerContainer.appendChild(settingsLabel);
-        settingsDividerContainer.appendChild(settingsDivider.cloneNode());
-        
-        menu.appendChild(settingsDividerContainer);
-
-        // Add color picker and rainbow toggle with better visibility
-        const colorPickerContainer = document.createElement('div');
-        colorPickerContainer.style.margin = '10px 0';
-        colorPickerContainer.style.display = 'flex';
-        colorPickerContainer.style.alignItems = 'center';
-        colorPickerContainer.style.justifyContent = 'space-between';
-        
-        const colorLabel = document.createElement('span');
-        colorLabel.textContent = 'Menu Color:';
-        colorLabel.style.marginRight = '10px';
-        colorLabel.style.fontSize = '14px';
-        colorLabel.style.color = '#fff';
-        
-        const colorPicker = document.createElement('input');
-        colorPicker.type = 'color';
-        colorPicker.value = '#282832';
-        colorPicker.style.width = '30px';
-        colorPicker.style.height = '30px';
-        colorPicker.style.cursor = 'pointer';
-        colorPicker.style.border = 'none';
-        colorPicker.style.backgroundColor = 'transparent';
-        
-        const rainbowLabel = document.createElement('label');
-        rainbowLabel.style.display = 'flex';
-        rainbowLabel.style.alignItems = 'center';
-        rainbowLabel.style.cursor = 'pointer';
-        rainbowLabel.style.marginLeft = '10px';
-        
-        const rainbowCheckbox = document.createElement('input');
-        rainbowCheckbox.type = 'checkbox';
-        rainbowCheckbox.style.marginRight = '5px';
-        
-        const rainbowText = document.createElement('span');
-        rainbowText.textContent = 'Rainbow';
-        rainbowText.style.fontSize = '14px';
-        rainbowText.style.color = '#fff';
-        
-        rainbowLabel.appendChild(rainbowCheckbox);
-        rainbowLabel.appendChild(rainbowText);
-        
-        colorPickerContainer.appendChild(colorLabel);
-        colorPickerContainer.appendChild(colorPicker);
-        colorPickerContainer.appendChild(rainbowLabel);
-        
-        menu.appendChild(colorPickerContainer);
-
-        // Add reset resize button
-        const resetResizeBtn = document.createElement('button');
-        resetResizeBtn.textContent = 'Reset Size';
-        resetResizeBtn.style.display = 'block';
-        resetResizeBtn.style.width = '100%';
-        resetResizeBtn.style.padding = '8px';
-        resetResizeBtn.style.margin = '5px 0';
-        resetResizeBtn.style.borderRadius = '5px';
-        resetResizeBtn.style.border = 'none';
-        resetResizeBtn.style.cursor = 'pointer';
-        resetResizeBtn.style.backgroundColor = '#607D8B';
-        resetResizeBtn.style.color = 'white';
-        resetResizeBtn.style.fontWeight = 'bold';
-        resetResizeBtn.style.transition = 'all 0.3s';
-        
-        resetResizeBtn.onmouseover = () => resetResizeBtn.style.backgroundColor = '#455A64';
-        resetResizeBtn.onmouseout = () => resetResizeBtn.style.backgroundColor = '#607D8B';
-        
-        resetResizeBtn.onclick = () => {
-            menu.style.width = '350px';
-            menu.style.height = '450px';
-            menu.style.left = '';
-            menu.style.right = '10px';
-            menu.style.top = '10px';
-            menu.style.transform = '';
-        };
-        
-        menu.appendChild(resetResizeBtn);
-        
-        // Add close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close Menu';
-        closeBtn.style.display = 'block';
-        closeBtn.style.width = '100%';
-        closeBtn.style.padding = '8px';
-        closeBtn.style.margin = '5px 0';
-        closeBtn.style.borderRadius = '5px';
-        closeBtn.style.border = 'none';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.backgroundColor = '#f44336';
-        closeBtn.style.color = 'white';
-        closeBtn.style.fontWeight = 'bold';
-        
-        closeBtn.onmouseover = () => closeBtn.style.backgroundColor = '#d32f2f';
-        closeBtn.onmouseout = () => closeBtn.style.backgroundColor = '#f44336';
-        
-        closeBtn.onclick = () => {
-            if (rainbowInterval) clearInterval(rainbowInterval);
-            if (allAnswersInterval) clearInterval(allAnswersInterval);
-            menu.remove();
-        };
-        
-        menu.appendChild(closeBtn);
-        
-        // Rainbow animation variables
-        let rainbowInterval = null;
-        let hue = 0;
-        
-        // Color picker event
-        colorPicker.addEventListener('input', () => {
-            if (rainbowInterval) {
-                clearInterval(rainbowInterval);
-                rainbowInterval = null;
-                rainbowCheckbox.checked = false;
-            }
-            menu.style.backgroundColor = colorPicker.value + 'e6';
-        });
-        
-        // Rainbow checkbox event
-        rainbowCheckbox.addEventListener('change', () => {
-            if (rainbowCheckbox.checked) {
-                rainbowInterval = setInterval(() => {
-                    hue = (hue + 1) % 360;
-                    menu.style.backgroundColor = `hsla(${hue}, 80%, 50%, 0.9)`;
-                }, 50);
-            } else if (rainbowInterval) {
-                clearInterval(rainbowInterval);
-                rainbowInterval = null;
-                menu.style.backgroundColor = colorPicker.value + 'e6';
-            }
-        });
-
-        document.body.appendChild(menu);
-    };
-    
-function createTD2menu() {
-    const menu = document.createElement('div');
-    menu.style.position = 'fixed';
-    menu.style.top = '10px';
-    menu.style.right = '10px';
-    menu.style.zIndex = '9999';
-    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
-    menu.style.borderRadius = '10px';
-    menu.style.padding = '10px';
-    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-    menu.style.color = 'white';
-    menu.style.fontFamily = 'Arial, sans-serif';
-    menu.style.cursor = 'move';
-    menu.style.userSelect = 'none';
-    menu.style.resize = 'both';
-    menu.style.overflow = 'auto';
-    menu.style.width = '350px';
-    menu.style.height = '450px';
-    menu.style.maxHeight = '80vh';
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-
- 
-    
-    currentMenu = menu;
-
-    // DRAGGABLE
-    let isDragging = false, offsetX, offsetY;
-    menu.addEventListener('mousedown', e => {
-        if (e.target === menu || e.target.tagName === 'H3') {
-            isDragging = true;
-            offsetX = e.clientX - menu.getBoundingClientRect().left;
-            offsetY = e.clientY - menu.getBoundingClientRect().top;
-            menu.style.cursor = 'grabbing';
-        }
-    });
-    document.addEventListener('mousemove', e => {
-        if (!isDragging) return;
-        menu.style.left = (e.clientX - offsetX) + 'px';
-        menu.style.top = (e.clientY - offsetY) + 'px';
-        menu.style.right = 'unset';
-    });
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        menu.style.cursor = 'move';
-    });
-
-    // Resize handles
-    ['top-left','top-right','bottom-left','bottom-right'].forEach(pos=>{
-        const handle = document.createElement('div');
-        handle.style.position = 'absolute';
-        handle.style.width = handle.style.height = '15px';
-        handle.style.backgroundColor = 'rgba(255,255,255,0.3)';
-        handle.style.zIndex = '10000';
-        handle.style.cursor = 
-            pos.includes('right') ? (pos.includes('bottom') ? 'nwse-resize' : 'nesw-resize') :
-            (pos.includes('bottom') ? 'nesw-resize' : 'nwse-resize');
-
-        if (pos.includes('right')) handle.style.right = '0';
-        else handle.style.left = '0';
-        if (pos.includes('bottom')) handle.style.bottom = '0';
-        else handle.style.top = '0';
-
-        let isResizing = false, startX, startY, startW, startH, startT, startL;
-        handle.addEventListener('mousedown', e => {
-            isResizing = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            startW = parseInt(getComputedStyle(menu).width);
-            startH = parseInt(getComputedStyle(menu).height);
-            startT = parseInt(getComputedStyle(menu).top);
-            startL = parseInt(getComputedStyle(menu).left);
-            e.preventDefault();
-        });
-        document.addEventListener('mousemove', e => {
-            if (!isResizing) return;
-            const dx = e.clientX - startX, dy = e.clientY - startY;
-            if (pos.includes('right')) menu.style.width = (startW + dx) + 'px';
-            else {
-                menu.style.width = (startW - dx) + 'px';
-                menu.style.left = (startL + dx) + 'px';
-            }
-            if (pos.includes('bottom')) menu.style.height = (startH + dy) + 'px';
-            else {
-                menu.style.height = (startH - dy) + 'px';
-                menu.style.top = (startT + dy) + 'px';
-            }
-        });
-        document.addEventListener('mouseup', () => { isResizing = false; });
-        menu.appendChild(handle);
-    });
-
-    // Header
-    const title = document.createElement('h3');
-    title.textContent = 'Tower Defense 2 Cheats (Press K to hide/show)';
-    title.style.margin = '0 0 10px 0';
-    title.style.textAlign = 'center';
-    title.style.color = '#9C27B0';
-    menu.appendChild(title);
-
-    // Utility function for dividers
-    const addDivider = (label) => {
-        const container = document.createElement('div');
-        container.style.display = 'flex';
-        container.style.alignItems = 'center';
-        container.style.margin = '10px 0';
-        const hr = document.createElement('hr');
-        hr.style.flex = '1';
-        hr.style.border = '1px solid #555';
-        hr.style.margin = '0 5px';
-        const span = document.createElement('span');
-        span.textContent = label;
-        span.style.color = '#aaa';
-        span.style.fontSize = '12px';
-        span.style.fontWeight = 'bold';
-        container.appendChild(hr);
-        container.appendChild(span);
-        container.appendChild(hr.cloneNode());
-        menu.appendChild(container);
-    };
-
-    // === GAME DIVIDER & BUTTONS ===
-    addDivider('Game');
-
-    const cheats = [
-        { name: 'Auto Answer', func: () => {
-            const cheat = async () => {
-                const { stateNode } = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner;
-                const Question = stateNode.state.question || stateNode.props.client.question;
-                if (stateNode.state.question.qType != "typing") {
-                    if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
-                        let ind;
-                        for (ind = 0; ind < Question.answers.length; ind++) {
-                            if (Question.correctAnswers.includes(Question.answers[ind])) break;
-                        }
-                        document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                    } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-                } else {
-                    Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-                }
-            };
-            setInterval(cheat, 50);
-        }},
-        { name: 'Max Towers', url: 'maxTowers' },
-        { name: 'Remove Enemies', url: 'removeEnemies' },
-        { name: 'Set Coins', url: 'setCoins', prompt: 'How many tokens would you like?', stateKey: 'coins' },
-        { name: 'Set Health', url: 'setHealth', prompt: 'How much health do you want?', stateKey: 'health' },
-        { name: 'Set Round', url: 'setRound', prompt: 'What round do you want to set to?', stateKey: 'round' }
-    ];
-
-    cheats.forEach(c => {
-        const btn = document.createElement('button');
-        btn.textContent = c.name;
-        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#9C27B0;color:white;font-weight:bold;transition:all 0.3s;';
-        btn.onmouseover = () => btn.style.backgroundColor = '#7B1FA2';
-        btn.onmouseout = () => btn.style.backgroundColor = '#9C27B0';
-        btn.onclick = () => {
-            if (c.func) return c.func();
-            if (c.prompt) {
-                const val = parseInt(prompt(c.prompt)) || 0;
-                const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
-                stateNode.setState({ [c.stateKey]: val });
-            } else {
-                const cheat = async () => {
-                    const node = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
-                    node.state.towers?.forEach(t => {
-                        t.stats.dmg = 1e6;
-                        t.stats.fireRate = 50;
-                        t.stats.ghostDetect = true;
-                        t.stats.maxTargets = 1e6;
-                        if (t.stats.numProjectiles) t.stats.numProjectiles = 100;
-                        t.stats.range = 100;
-                        if (t.stats.auraBuffs) for (const buff in t.stats.auraBuffs) t.stats.auraBuffs[buff] *= 100;
-                    });
-                };
-                cheat();
-            }
-        };
-        menu.appendChild(btn);
-    });
-
-    // === OTHER DIVIDER & BUTTONS ===
-    addDivider('Other');
-    const otherCheats = [
-        { name: 'All Answers Correct (Global)', func: () => {
-            const stateNode = Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode;
-            for (let i = 0; i < stateNode.questions.length; i++) {
-                const q = stateNode.questions[i];
-                q.correctAnswers = [...q.answers];
-            }
-            if (stateNode.props.liveGameController) {
-                stateNode.props.liveGameController.setVal({
-                    path: 'questions',
-                    val: stateNode.questions.map(q => ({
-                        ...q,
-                        correctAnswers: [...q.answers]
-                    }))
-                });
-            }
-        }},
-        { name: 'Custom Name (Ignore Random name)', func: () => {
-            Object.values((function react(r=document.querySelector("body>div")){return Object.values(r)[1]?.children?.[0]?._owner.stateNode?r:react(r.querySelector(":scope>div"));})())[1].children[0]._owner.stateNode.setState({ isRandom: false, client: { name: "" } });
-            document.querySelector('[class*="nameInput"]')?.focus?.();
-        }},
-        { name: 'Use Any Blook', func: () => alert("Use Any Blook script would go here.") },
-        { name: 'Change Blook', func: () => alert("Change Blook script would go here.") },
-        { name: 'Set Flappy Score', func: () => alert("Set Flappy Score script would go here.") },
-        { name: 'Toggle Ghost Mode', func: () => alert("Toggle Ghost Mode script would go here.") }
-    ];
-
-    otherCheats.forEach(c => {
-        const btn = document.createElement('button');
-        btn.textContent = c.name;
-        btn.style.cssText = 'display:block;width:100%;padding:8px;margin:5px 0;border-radius:5px;border:none;cursor:pointer;background-color:#4CAF50;color:white;font-weight:bold;transition:all 0.3s;';
-        btn.onmouseover = () => btn.style.backgroundColor = '#388E3C';
-        btn.onmouseout = () => btn.style.backgroundColor = '#4CAF50';
-        btn.onclick = c.func;
-        menu.appendChild(btn);
-    });
-
-    // === SETTINGS ===
-    addDivider('Menu Settings');
-    const colorPicker = document.createElement('input');
-    colorPicker.type = 'color';
-    colorPicker.value = '#282832';
-    colorPicker.style.marginBottom = '10px';
-
-    const rainbowCheckbox = document.createElement('input');
-    rainbowCheckbox.type = 'checkbox';
-    rainbowCheckbox.style.marginLeft = '10px';
-    const rainbowLabel = document.createElement('label');
-    rainbowLabel.style.color = 'white';
-    rainbowLabel.textContent = ' Rainbow';
-    rainbowLabel.insertBefore(rainbowCheckbox, rainbowLabel.firstChild);
-
-    let rainbowInterval, hue = 0;
-    rainbowCheckbox.onchange = () => {
-        if (rainbowCheckbox.checked) {
-            rainbowInterval = setInterval(() => {
-                hue = (hue + 1) % 360;
-                menu.style.backgroundColor = `hsla(${hue}, 80%, 50%, 0.9)`;
-            }, 50);
-        } else {
-            clearInterval(rainbowInterval);
-            menu.style.backgroundColor = colorPicker.value + 'e6';
-        }
-    };
-
-    colorPicker.oninput = () => {
-        if (rainbowInterval) {
-            clearInterval(rainbowInterval);
-            rainbowCheckbox.checked = false;
-        }
-        menu.style.backgroundColor = colorPicker.value + 'e6';
-    };
-
-    menu.appendChild(colorPicker);
-    menu.appendChild(rainbowLabel);
-
-    // Reset size
-    const resetBtn = document.createElement('button');
-    resetBtn.textContent = 'Reset Size';
-    resetBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#607D8B;color:white;font-weight:bold;cursor:pointer;';
-    resetBtn.onclick = () => {
-        menu.style.width = '350px';
-        menu.style.height = '450px';
-        menu.style.left = '';
-        menu.style.right = '10px';
-        menu.style.top = '10px';
-        menu.style.transform = '';
-    };
-    menu.appendChild(resetBtn);
-
-    // Close
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = 'Close Menu';
-    closeBtn.style.cssText = 'margin:5px 0;padding:8px;border:none;border-radius:5px;background-color:#f44336;color:white;font-weight:bold;cursor:pointer;';
-    closeBtn.onclick = () => {
-        if (rainbowInterval) clearInterval(rainbowInterval);
-        menu.remove();
-    };
-    menu.appendChild(closeBtn);
-
-    document.body.appendChild(menu);
-}
-
-
-
-    // Function to create the Crypto Hack menu
-    const createCryptoMenu = () => {
-        modePopup.remove();
-        
-        const menu = document.createElement('div');
-        menu.style.position = 'fixed';
-        menu.style.top = '10px';
-        menu.style.right = '10px';
-        menu.style.zIndex = '9999';
-        menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
-        menu.style.borderRadius = '10px';
-        menu.style.padding = '10px';
-        menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-        menu.style.color = 'white';
-        menu.style.fontFamily = 'Arial, sans-serif';
-        menu.style.cursor = 'move';
-        menu.style.userSelect = 'none';
-        menu.style.resize = 'both';
-        menu.style.overflow = 'auto';
-        menu.style.width = '350px';
-        menu.style.height = '450px';
-        menu.style.maxHeight = '80vh';
-        menu.style.display = 'flex';
-        menu.style.flexDirection = 'column';
-
-     
-
-        // Set as current menu
-        currentMenu = menu;
-        
-        // Make menu draggable
-        let isDragging = false;
-        let offsetX, offsetY;
-        
-        menu.addEventListener('mousedown', (e) => {
-            if (e.target === menu || e.target.tagName === 'H3') {
-                isDragging = true;
-                offsetX = e.clientX - menu.getBoundingClientRect().left;
-                offsetY = e.clientY - menu.getBoundingClientRect().top;
-                menu.style.cursor = 'grabbing';
-            }
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            menu.style.left = (e.clientX - offsetX) + 'px';
-            menu.style.top = (e.clientY - offsetY) + 'px';
-            menu.style.right = 'unset';
-        });
-        
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-            menu.style.cursor = 'move';
-        });
-
-        // Add resize handles (all corners)
-        const createResizeHandle = (position) => {
-            const resizeHandle = document.createElement('div');
-            resizeHandle.style.position = 'fixed';
-            resizeHandle.style.width = '20px';
-            resizeHandle.style.height = '20px';
-            resizeHandle.style.cursor = position.includes('right') ? 
-                (position.includes('bottom') ? 'nwse-resize' : 'nesw-resize') :
-                (position.includes('bottom') ? 'nesw-resize' : 'nwse-resize');
-            
-            if (position.includes('right')) resizeHandle.style.right = '0';
-            else resizeHandle.style.left = '0';
-            if (position.includes('bottom')) resizeHandle.style.bottom = '0';
-            else resizeHandle.style.top = '0';
-
-            resizeHandle.style.backgroundColor = 'rgba(255,255,255,0.3)';
-            resizeHandle.style.borderRadius = position.includes('right') ? 
-                (position.includes('bottom') ? '0 0 5px 0' : '0 5px 0 0') :
-                (position.includes('bottom') ? '0 0 0 5px' : '5px 0 0 0');
-            
-            let isResizing = false;
-            let startX, startY, startWidth, startHeight, startTop, startLeft;
-            
-            resizeHandle.addEventListener('mousedown', (e) => {
-                isResizing = true;
-                startX = e.clientX;
-                startY = e.clientY;
-                startWidth = parseInt(document.defaultView.getComputedStyle(menu).width, 10);
-                startHeight = parseInt(document.defaultView.getComputedStyle(menu).height, 10);
-                startTop = parseInt(document.defaultView.getComputedStyle(menu).top, 10);
-                startLeft = parseInt(document.defaultView.getComputedStyle(menu).left, 10);
-                e.preventDefault();
-            });
-            
-            document.addEventListener('mousemove', (e) => {
-                if (!isResizing) return;
-                
-                const deltaX = e.clientX - startX;
-                const deltaY = e.clientY - startY;
-
-                if (position.includes('right')) {
-                    menu.style.width = (startWidth + deltaX) + 'px';
-                } else {
-                    menu.style.width = (startWidth - deltaX) + 'px';
-                    menu.style.left = (startLeft + deltaX) + 'px';
-                }
-
-                if (position.includes('bottom')) {
-                    menu.style.height = (startHeight + deltaY) + 'px';
-                } else {
-                    menu.style.height = (startHeight - deltaY) + 'px';
-                    menu.style.top = (startTop + deltaY) + 'px';
-                }
-                
-                const buttons = menu.querySelectorAll('button');
-                buttons.forEach(btn => {
-                    btn.style.width = '100%';
-                    btn.style.padding = `${Math.max(6, parseInt(menu.style.height, 10)/30)}px`;
-                });
-            });
-            
-            document.addEventListener('mouseup', () => {
-                isResizing = false;
-            });
-            
-            return resizeHandle;
-        };
-        
-        // Create a container for resize handles
-        const resizeContainer = document.createElement('div');
-        resizeContainer.style.position = 'sticky';
-        resizeContainer.style.bottom = '0';
-        resizeContainer.style.width = '100%';
-        resizeContainer.style.height = '20px';
-        resizeContainer.style.zIndex = '10000';
-        
-        // Add all 4 resize handles
-        resizeContainer.appendChild(createResizeHandle('top-left'));
-        resizeContainer.appendChild(createResizeHandle('top-right'));
-        resizeContainer.appendChild(createResizeHandle('bottom-left'));
-        resizeContainer.appendChild(createResizeHandle('bottom-right'));
-        menu.appendChild(resizeContainer);
-        
-        // Menu title
-        const title = document.createElement('h3');
-        title.textContent = 'Crypto Hack Cheats (Press K to hide/show)';
-        title.style.margin = '0 0 10px 0';
-        title.style.textAlign = 'center';
-        title.style.color = '#FF9800';
-        menu.appendChild(title);
-
-        // Set up fetch interception
-        let iframe = document.querySelector("iframe");
-        if (!iframe) {
-            iframe = document.createElement("iframe");
-            iframe.style.display = "none";
-            document.body.append(iframe);
-        }
-
-        if (window.fetch && window.fetch.call.toString() === 'function call() { [native code] }') {
-            const call = window.fetch.call;
-            window.fetch.call = function () {
-                if (!arguments[1] || !arguments[1].includes("s.blooket.com/rc")) {
-                    return call.apply(this, arguments);
-                }
-            };
-        }
-
-        // Add "Game" divider at the top
-        const gameDividerContainer = document.createElement('div');
-        gameDividerContainer.style.display = 'flex';
-        gameDividerContainer.style.alignItems = 'center';
-        gameDividerContainer.style.margin = '10px 0';
-        
-        const gameDivider = document.createElement('hr');
-        gameDivider.style.flex = '1';
-        gameDivider.style.border = '1px solid #555';
-        gameDivider.style.margin = '0 5px';
-        
-        const gameLabel = document.createElement('span');
-        gameLabel.textContent = 'Game';
-        gameLabel.style.color = '#aaa';
-        gameLabel.style.fontSize = '12px';
-        gameLabel.style.fontWeight = 'bold';
-        
-        gameDividerContainer.appendChild(gameDivider);
-        gameDividerContainer.appendChild(gameLabel);
-        gameDividerContainer.appendChild(gameDivider.cloneNode());
-        
-        menu.appendChild(gameDividerContainer);
-
-    const cryptoCheats = {
-        autoAnswer: {
-            name: 'Auto Answer',
-            active: false,
-            interval: null,
-            func: function () {
-                const cheat = async () => {
-                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) {
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div"));
-                    })())[1].children[0]._owner;
-
-                    const Question = stateNode.state.question || stateNode.props.client.question;
-
-                    if (stateNode.state.question.qType != "typing") {
-                        if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
-                            let ind;
-                            for (ind = 0; ind < Question.answers.length; ind++) {
-                                let found = false;
-                                for (let j = 0; j < Question.correctAnswers.length; j++) {
-                                    if (Question.answers[ind] == Question.correctAnswers[j]) {
-                                        found = true;
-                                        break;
-                                    }
-                                }
-                                if (found) break;
-                            }
-                            document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                        } else {
-                            document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-                        }
-                    } else {
-                        Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-                    }
-                };
-                cheat();
-            }
-        },
-        alwaysQuintuple: {
-            name: 'Always Quintuple',
-            active: false,
-            interval: null,
-            func: function() {
-                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode;
-
-                if (this.active) {
-                    stateNode.setState({ 
-                        choices: [] 
-                    });
-                } else {
-                    stateNode.setState({ 
-                        choices: [{ type: "mult", val: 5, rate: 0.075, blook: "Brainy Bot", text: "Quintuple Crypto" }] 
-                    });
-                }
-            }
-        },
-                autoGuessPassword: {
-            name: 'Auto Guess Password',
-            active: false,
-            interval: null,
-            func: function() {
-                const stateNode = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode;
-
-                if (this.active && stateNode.state.stage === "hack") {
-                    const buttons = document.querySelectorAll('div[class*=buttonContainer] > div');
-                    for (const button of buttons) {
-                        if (button.innerText === stateNode.state.correctPassword) {
-                            button.click();
-                            break;
-                        }
-                    }
-                }
-            }
-        },
-        passwordESP: {
-            name: 'Password ESP',
-            active: false,
-            interval: null,
-            func: function() {
-                const highlightPasswords = () => {
-                    let { state } = Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner.stateNode;
-                    
-                    if (state.stage == "hack") {
-                        const buttons = document.querySelector('div[class*=buttonContainer]')?.children;
-                        if (buttons) {
-                            for (const button of buttons) {
-                                if (button.innerText == state.correctPassword) {
-                                    button.style.outlineColor = "rgba(64, 255, 64, 0.8)";
-                                    button.style.backgroundColor = "rgba(64, 255, 64, 0.8)";
-                                    button.style.textShadow = "0 0 1px #3f3";
-                                } else {
-                                    button.style.outlineColor = "rgba(255, 64, 64, 0.8)";
-                                    button.style.backgroundColor = "rgba(255, 64, 64, 0.8)";
-                                    button.style.textShadow = "0 0 1px #f33";
-                                }
-                            }
-                        }
-                    }
-                };
-                highlightPasswords();
-                this.interval = setInterval(highlightPasswords, 1000);
-            }
-        },
-        removeHack: {
-            name: 'Remove Hack',
-            active: false,
-            interval: null,
-            func: function() {
-                const removeHackAction = () => {
-                    Object.values((function react(r = document.querySelector("body>div")) { 
-                        return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                    })())[1].children[0]._owner.stateNode.setState({ hack: "" });
-                };
-                if (this.active) {
-                    if (!this.interval) {
-                        this.interval = setInterval(removeHackAction, 500);
-                    }
-                } else {
-                    if (this.interval) {
-                        clearInterval(this.interval);
-                        this.interval = null;
-                    }
-                }
-            }
-        },
-        setCrypto: {
-            name: 'Set Crypto',
-            active: false,
-            func: () => {
-                const parseCryptoInput = (input) => {
-                    input = (input || "0").trim().toUpperCase();
-                    const multiplier = {
-                        'K': 1000,
-                        'M': 1000000,
-                        'B': 1000000000,
-                        'T': 1000000000000
-                    }[input.slice(-1)] || 1;
-
-                    const numberPart = parseFloat(input.replace(/[^0-9.]/g, '')) || 0;
-                    return Math.round(numberPart * multiplier);
-                };
-
-                let i = document.createElement('iframe');
-                document.body.append(i);
-                window.prompt = i.contentWindow.prompt.bind(window);
-                i.remove();
-
-                const amount = parseCryptoInput(
-                    prompt("How much crypto would you like? (e.g., 500, 5K, 2.5M, 1B, 2T)")
-                );
-
-                let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner;
-                stateNode.setState({ crypto: amount, crypto2: amount });
-                stateNode.props.liveGameController.setVal({
-                    path: `c/${stateNode.props.client.name}/cr`,
-                    val: amount
-                });
-            }
-        },
-        stealCrypto: {
-            name: 'Steal Crypto',
-            active: false,
-            func: () => {
-                let i = document.createElement('iframe');
-                document.body.append(i);
-                window.prompt = i.contentWindow.prompt.bind(window);
-                i.remove();
-                let target = prompt("Who's crypto would you like to steal?");
-                let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner;
-                stateNode.props.liveGameController.getDatabaseVal("c", (players) => {
-                    let player;
-                    if (players && (player = Object.entries(players).find((x) => x[0].toLowerCase() == target.toLowerCase()))) {
-                        const cr = player[1].cr;
-                        stateNode.setState({
-                            crypto: stateNode.state.crypto + cr,
-                            crypto2: stateNode.state.crypto + cr
-                        });
-                        stateNode.props.liveGameController.setVal({
-                            path: "c/" + stateNode.props.client.name,
-                            val: {
-                                b: stateNode.props.client.blook,
-                                p: stateNode.state.password,
-                                cr: stateNode.state.crypto + cr,
-                                tat: player[0] + ":" + cr
-                            }
-                        });
-                    }
-                });
-            }
-        }
-    };
-
-    // Create buttons for each crypto cheat
-    Object.keys(cryptoCheats).forEach(key => {
-        const cheat = cryptoCheats[key];
-        const btn = document.createElement('button');
-        btn.textContent = cheat.name;
-        btn.style.display = 'block';
-        btn.style.width = '100%';
-        btn.style.padding = '8px';
-        btn.style.margin = '5px 0';
-        btn.style.borderRadius = '5px';
-        btn.style.border = 'none';
-        btn.style.cursor = 'pointer';
-        btn.style.backgroundColor = '#FF9800';
-        btn.style.color = 'white';
-        btn.style.fontWeight = 'bold';
-        btn.style.transition = 'all 0.3s';
-
-        btn.onmouseover = () => btn.style.backgroundColor = '#e68a00';
-        btn.onmouseout = () => btn.style.backgroundColor = cheat.active ? '#e68a00' : '#FF9800';
-
-
-btn.onclick = () => {
-    if (cheat.active) {
-        // Turning OFF the cheat
-        if (cheat.interval) {
-            clearInterval(cheat.interval);
-            cheat.interval = null;
-        }
-        cheat.active = false;
-        btn.style.backgroundColor = '#FF9800';
-    } else {
-        // Turning ON the cheat
-        cheat.active = true;
-        btn.style.backgroundColor = '#0b7dda';
-
-        if (key === 'autoAnswer') {
-            cheat.func(); // Run once immediately
-            cheat.interval = setInterval(cheat.func, 500); // Loop it every 500ms
-        } else if (key === 'passwordESP') {
-            cheat.func();
-            cheat.interval = setInterval(cheat.func, 1000); // Loop every 1000ms
-        } else if (key === 'alwaysQuintuple') {
-            cheat.func();
-            cheat.interval = setInterval(cheat.func, 200); // Loop every 200ms
-        } else {
-            cheat.func(); // Just run once for others
-        }
-    }
-};
-
-
-        menu.appendChild(btn);
-    });
-
-        // Add "Other" divider
-        const otherDividerContainer = document.createElement('div');
-        otherDividerContainer.style.display = 'flex';
-        otherDividerContainer.style.alignItems = 'center';
-        otherDividerContainer.style.margin = '10px 0';
-        
-        const otherDivider = document.createElement('hr');
-        otherDivider.style.flex = '1';
-        otherDivider.style.border = '1px solid #555';
-        otherDivider.style.margin = '0 5px';
-        
-        const otherLabel = document.createElement('span');
-        otherLabel.textContent = 'Other';
-        otherLabel.style.color = '#aaa';
-        otherLabel.style.fontSize = '12px';
-        otherLabel.style.fontWeight = 'bold';
-        
-        otherDividerContainer.appendChild(otherDivider);
-        otherDividerContainer.appendChild(otherLabel);
-        otherDividerContainer.appendChild(otherDivider.cloneNode());
-        
-        menu.appendChild(otherDividerContainer);
-
-        // Add "All Answers Correct" button (now with looping)
-        const allAnswersCorrectBtn = document.createElement('button');
-        allAnswersCorrectBtn.textContent = 'All Answers Correct (Global)';
-        allAnswersCorrectBtn.style.display = 'block';
-        allAnswersCorrectBtn.style.width = '100%';
-        allAnswersCorrectBtn.style.padding = '8px';
-        allAnswersCorrectBtn.style.margin = '5px 0';
-        allAnswersCorrectBtn.style.borderRadius = '5px';
-        allAnswersCorrectBtn.style.border = 'none';
-        allAnswersCorrectBtn.style.cursor = 'pointer';
-        allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-        allAnswersCorrectBtn.style.color = 'white';
-        allAnswersCorrectBtn.style.fontWeight = 'bold';
-        allAnswersCorrectBtn.style.transition = 'all 0.3s';
-        
-        let allAnswersInterval = null;
-        
-        allAnswersCorrectBtn.onmouseover = () => allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-        allAnswersCorrectBtn.onmouseout = () => allAnswersCorrectBtn.style.backgroundColor = allAnswersInterval ? '#388E3C' : '#4CAF50';
-        
-        allAnswersCorrectBtn.onclick = () => {
-            if (allAnswersInterval) {
-                clearInterval(allAnswersInterval);
-                allAnswersInterval = null;
-                allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-                return;
-            }
-            
-            const updateAllAnswers = () => {
-                const stateNode = getStateNode();
-                
-                // Modify local questions
-                for (let i = 0; i < stateNode.freeQuestions.length; i++) {
-                    stateNode.freeQuestions[i].correctAnswers = [...stateNode.freeQuestions[i].answers];
-                    stateNode.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-                    stateNode.props.client.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-                }
-
-                // Force update for all players via Firebase
-                if (stateNode.props.liveGameController) {
-                    stateNode.props.liveGameController.setVal({
-                        path: 'questions',
-                        val: stateNode.questions.map(q => ({
-                            ...q,
-                            correctAnswers: [...q.answers]
-                        }))
-                    });
-                }
-
-                try {
-                    stateNode.forceUpdate();
-                } catch {}
-            };
-            
-            updateAllAnswers(); // Run immediately
-            allAnswersInterval = setInterval(updateAllAnswers, 3000); // Then every 3 seconds
-            allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-        };
-        
-        menu.appendChild(allAnswersCorrectBtn);
-
-        // Add "Custom Name (Ignore Random name)" button
-        const customNameBtn = document.createElement('button');
-        customNameBtn.textContent = 'Custom Name (Ignore Random name)';
-        customNameBtn.style.display = 'block';
-        customNameBtn.style.width = '100%';
-        customNameBtn.style.padding = '8px';
-        customNameBtn.style.margin = '5px 0';
-        customNameBtn.style.borderRadius = '5px';
-        customNameBtn.style.border = 'none';
-        customNameBtn.style.cursor = 'pointer';
-        customNameBtn.style.backgroundColor = '#4CAF50';
-        customNameBtn.style.color = 'white';
-        customNameBtn.style.fontWeight = 'bold';
-        customNameBtn.style.transition = 'all 0.3s';
-        
-        customNameBtn.onmouseover = () => customNameBtn.style.backgroundColor = '#388E3C';
-        customNameBtn.onmouseout = () => customNameBtn.style.backgroundColor = '#4CAF50';
-        
-        customNameBtn.onclick = () => {
-            getStateNode().setState({ isRandom: false, client: { name: "" } });
-            document.querySelector('[class*="nameInput"]')?.focus?.();
-        };
-        
-        menu.appendChild(customNameBtn);
-
-        // Add "Lobby" divider
-        const lobbyDividerContainer = document.createElement('div');
-        lobbyDividerContainer.style.display = 'flex';
-        lobbyDividerContainer.style.alignItems = 'center';
-        lobbyDividerContainer.style.margin = '10px 0';
-        
-        const lobbyDivider = document.createElement('hr');
-        lobbyDivider.style.flex = '1';
-        lobbyDivider.style.border = '1px solid #555';
-        lobbyDivider.style.margin = '0 5px';
-        
-        const lobbyLabel = document.createElement('span');
-        lobbyLabel.textContent = 'Lobby';
-        lobbyLabel.style.color = '#aaa';
-        lobbyLabel.style.fontSize = '12px';
-        lobbyLabel.style.fontWeight = 'bold';
-        
-        lobbyDividerContainer.appendChild(lobbyDivider);
-        lobbyDividerContainer.appendChild(lobbyLabel);
-        lobbyDividerContainer.appendChild(lobbyDivider.cloneNode());
-        
-        menu.appendChild(lobbyDividerContainer);
-
-        // Add special cheats in new order with Change Blook first
-        const specialCheats = [
-            {
-                name: 'Change Blook',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
-                    props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
-                }
-            },
-            {
-                name: 'Use Any Blook',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.alert = i.contentWindow.alert.bind(window);
-                    i.remove();
-                    let blooks;
-                    const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
-                    const lobby = window.location.pathname.startsWith("/play/lobby"),
-                        dashboard = !lobby && window.location.pathname.startsWith("/blooks");
-                    if (dashboard || lobby) {
-                        let blooks, key = lobby ? "keys" : "entries";
-                        const old = Object[key];
-                        Object[key] = function (obj) {
-                            if (!obj.Chick) return old.call(this, obj);
-                            blooks = obj;
-                            return (Object[key] = old).call(this, obj);
-                        };
-                        stateNode.render();
-                        if (lobby) stateNode.setState({ unlocks: Object.keys(blooks) });
-                        else stateNode.setState({ blookData: Object.keys(blooks).reduce((a, b) => (a[b] = (stateNode.state.blookData[b] || 1), a), {}), allSets: Object.values(blooks).reduce((a, b) => (b.set && a.includes(b.set) ? a : a.concat(b.set)), []) });
-                    } else alert("This only works in lobbies or the dashboard blooks page.");
-                }
-            },
-            {
-                name: 'Set Flappy Score',
-                func: () => {
-                    let i = document.createElement('iframe');
-                    document.body.append(i);
-                    window.prompt = i.contentWindow.prompt.bind(window);
-                    i.remove();
-                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
-                }
-            },
-            {
-                name: 'Toggle Ghost Mode',
-                func: () => {
-                    Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[0].current.config.sceneConfig.physics.world.bodies.entries.forEach(x => {
-                        if (!x.gameObject.frame.texture.key.startsWith("blook")) return;
-                        x.checkCollision.none = x.gameObject.alpha == 1;
-                        x.gameObject.setAlpha(x.gameObject.alpha == 1 ? 0.5 : 1);
-                    });
-                }
-            }
-        ];
-
-        // Create buttons for special cheats
-        specialCheats.forEach(cheat => {
-            const btn = document.createElement('button');
-            btn.textContent = cheat.name;
-            btn.style.display = 'block';
-            btn.style.width = '100%';
-            btn.style.padding = '8px';
-            btn.style.margin = '5px 0';
-            btn.style.borderRadius = '5px';
-            btn.style.border = 'none';
-            btn.style.cursor = 'pointer';
-            btn.style.backgroundColor = '#9C27B0';
-            btn.style.color = 'white';
-            btn.style.fontWeight = 'bold';
-            btn.style.transition = 'all 0.3s';
-            
-            btn.onmouseover = () => btn.style.backgroundColor = '#7B1FA2';
-            btn.onmouseout = () => btn.style.backgroundColor = '#9C27B0';
-            
-            btn.onclick = () => {
-                cheat.func();
-            };
-            
-            menu.appendChild(btn);
-        });
-
-        // Add divider with "Menu Settings" label
-        const settingsDividerContainer = document.createElement('div');
-        settingsDividerContainer.style.display = 'flex';
-        settingsDividerContainer.style.alignItems = 'center';
-        settingsDividerContainer.style.margin = '10px 0';
-        
-        const settingsDivider = document.createElement('hr');
-        settingsDivider.style.flex = '1';
-        settingsDivider.style.border = '1px solid #555';
-        settingsDivider.style.margin = '0 5px';
-        
-        const settingsLabel = document.createElement('span');
-        settingsLabel.textContent = 'Menu Settings';
-        settingsLabel.style.color = '#aaa';
-        settingsLabel.style.fontSize = '12px';
-        settingsLabel.style.fontWeight = 'bold';
-        
-        settingsDividerContainer.appendChild(settingsDivider);
-        settingsDividerContainer.appendChild(settingsLabel);
-        settingsDividerContainer.appendChild(settingsDivider.cloneNode());
-        
-        menu.appendChild(settingsDividerContainer);
-
-        // Add color picker and rainbow toggle with better visibility
-        const colorPickerContainer = document.createElement('div');
-        colorPickerContainer.style.margin = '10px 0';
-        colorPickerContainer.style.display = 'flex';
-        colorPickerContainer.style.alignItems = 'center';
-        colorPickerContainer.style.justifyContent = 'space-between';
-        
-        const colorLabel = document.createElement('span');
-        colorLabel.textContent = 'Menu Color:';
-        colorLabel.style.marginRight = '10px';
-        colorLabel.style.fontSize = '14px';
-        colorLabel.style.color = '#fff';
-        
-        const colorPicker = document.createElement('input');
-        colorPicker.type = 'color';
-        colorPicker.value = '#282832';
-        colorPicker.style.width = '30px';
-        colorPicker.style.height = '30px';
-        colorPicker.style.cursor = 'pointer';
-        colorPicker.style.border = 'none';
-        colorPicker.style.backgroundColor = 'transparent';
-        
-        const rainbowLabel = document.createElement('label');
-        rainbowLabel.style.display = 'flex';
-        rainbowLabel.style.alignItems = 'center';
-        rainbowLabel.style.cursor = 'pointer';
-        rainbowLabel.style.marginLeft = '10px';
-        
-        const rainbowCheckbox = document.createElement('input');
-        rainbowCheckbox.type = 'checkbox';
-        rainbowCheckbox.style.marginRight = '5px';
-        
-        const rainbowText = document.createElement('span');
-        rainbowText.textContent = 'Rainbow';
-        rainbowText.style.fontSize = '14px';
-        rainbowText.style.color = '#fff';
-        
-        rainbowLabel.appendChild(rainbowCheckbox);
-        rainbowLabel.appendChild(rainbowText);
-        
-        colorPickerContainer.appendChild(colorLabel);
-        colorPickerContainer.appendChild(colorPicker);
-        colorPickerContainer.appendChild(rainbowLabel);
-        
-        menu.appendChild(colorPickerContainer);
-
-        // Add reset resize button
-        const resetResizeBtn = document.createElement('button');
-        resetResizeBtn.textContent = 'Reset Size';
-        resetResizeBtn.style.display = 'block';
-        resetResizeBtn.style.width = '100%';
-        resetResizeBtn.style.padding = '8px';
-        resetResizeBtn.style.margin = '5px 0';
-        resetResizeBtn.style.borderRadius = '5px';
-        resetResizeBtn.style.border = 'none';
-        resetResizeBtn.style.cursor = 'pointer';
-        resetResizeBtn.style.backgroundColor = '#607D8B';
-        resetResizeBtn.style.color = 'white';
-        resetResizeBtn.style.fontWeight = 'bold';
-        resetResizeBtn.style.transition = 'all 0.3s';
-        
-        resetResizeBtn.onmouseover = () => resetResizeBtn.style.backgroundColor = '#455A64';
-        resetResizeBtn.onmouseout = () => resetResizeBtn.style.backgroundColor = '#607D8B';
-        
-        resetResizeBtn.onclick = () => {
-            menu.style.width = '350px';
-            menu.style.height = '450px';
-            menu.style.left = '';
-            menu.style.right = '10px';
-            menu.style.top = '10px';
-            menu.style.transform = '';
-        };
-        
-        menu.appendChild(resetResizeBtn);
-        
-        // Add close button
-        const closeBtn = document.createElement('button');
-        closeBtn.textContent = 'Close Menu';
-        closeBtn.style.display = 'block';
-        closeBtn.style.width = '100%';
-        closeBtn.style.padding = '8px';
-        closeBtn.style.margin = '5px 0';
-        closeBtn.style.borderRadius = '5px';
-        closeBtn.style.border = 'none';
-        closeBtn.style.cursor = 'pointer';
-        closeBtn.style.backgroundColor = '#f44336';
-        closeBtn.style.color = 'white';
-        closeBtn.style.fontWeight = 'bold';
-        
-        closeBtn.onmouseover = () => closeBtn.style.backgroundColor = '#d32f2f';
-        closeBtn.onmouseout = () => closeBtn.style.backgroundColor = '#f44336';
-        
-        closeBtn.onclick = () => {
-            if (rainbowInterval) clearInterval(rainbowInterval);
-            if (allAnswersInterval) clearInterval(allAnswersInterval);
-            menu.remove();
-        };
-        
-        menu.appendChild(closeBtn);
-        
-        // Rainbow animation variables
-        let rainbowInterval = null;
-        let hue = 0;
-        
-        // Color picker event
-        colorPicker.addEventListener('input', () => {
-            if (rainbowInterval) {
-                clearInterval(rainbowInterval);
-                rainbowInterval = null;
-                rainbowCheckbox.checked = false;
-            }
-            menu.style.backgroundColor = colorPicker.value + 'e6';
-        });
-        
-        // Rainbow checkbox event
-        rainbowCheckbox.addEventListener('change', () => {
-            if (rainbowCheckbox.checked) {
-                rainbowInterval = setInterval(() => {
-                    hue = (hue + 1) % 360;
-                    menu.style.backgroundColor = `hsla(${hue}, 80%, 50%, 0.9)`;
-                }, 50);
-            } else if (rainbowInterval) {
-                clearInterval(rainbowInterval);
-                rainbowInterval = null;
-                menu.style.backgroundColor = colorPicker.value + 'e6';
-            }
-        });
-
-        document.body.appendChild(menu);
-    };
-// Function to create the Monster Brawl menu
-const createMonsterBrawlMenu = () => {
-    modePopup.remove();
-    
-    const menu = document.createElement('div');
-    menu.style.position = 'fixed';
-    menu.style.top = '10px';
-    menu.style.right = '10px';
-    menu.style.zIndex = '9999';
-    menu.style.backgroundColor = 'rgba(40, 40, 50, 0.9)';
-    menu.style.borderRadius = '10px';
-    menu.style.padding = '10px';
-    menu.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
-    menu.style.color = 'white';
-    menu.style.fontFamily = 'Arial, sans-serif';
-    menu.style.cursor = 'move';
-    menu.style.userSelect = 'none';
-    menu.style.resize = 'both';
-    menu.style.overflow = 'auto';
-    menu.style.width = '350px';
-    menu.style.height = '450px';
-    menu.style.maxHeight = '80vh';
-    menu.style.display = 'flex';
-    menu.style.flexDirection = 'column';
-    
- 
-
-    // Set as current menu
-    currentMenu = menu;
-    
-    // Make menu draggable (same as other menus)
-    let isDragging = false;
-    let offsetX, offsetY;
-    
-    menu.addEventListener('mousedown', (e) => {
-        if (e.target === menu || e.target.tagName === 'H3') {
-            isDragging = true;
-            offsetX = e.clientX - menu.getBoundingClientRect().left;
-            offsetY = e.clientY - menu.getBoundingClientRect().top;
-            menu.style.cursor = 'grabbing';
-        }
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        menu.style.left = (e.clientX - offsetX) + 'px';
-        menu.style.top = (e.clientY - offsetY) + 'px';
-        menu.style.right = 'unset';
-    });
-    
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        menu.style.cursor = 'move';
-    });
-
-    // Add resize handles (same as other menus)
-    const createResizeHandle = (position) => {
-        const resizeHandle = document.createElement('div');
-        resizeHandle.style.position = 'fixed';
-        resizeHandle.style.width = '20px';
-        resizeHandle.style.height = '20px';
-        resizeHandle.style.cursor = position.includes('right') ? 
-            (position.includes('bottom') ? 'nwse-resize' : 'nesw-resize') :
-            (position.includes('bottom') ? 'nesw-resize' : 'nwse-resize');
-        
-        if (position.includes('right')) resizeHandle.style.right = '0';
-        else resizeHandle.style.left = '0';
-        if (position.includes('bottom')) resizeHandle.style.bottom = '0';
-        else resizeHandle.style.top = '0';
-
-        resizeHandle.style.backgroundColor = 'rgba(255,255,255,0.3)';
-        resizeHandle.style.borderRadius = position.includes('right') ? 
-            (position.includes('bottom') ? '0 0 5px 0' : '0 5px 0 0') :
-            (position.includes('bottom') ? '0 0 0 5px' : '5px 0 0 0');
-        
-        let isResizing = false;
-        let startX, startY, startWidth, startHeight, startTop, startLeft;
-        
-        resizeHandle.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            startWidth = parseInt(document.defaultView.getComputedStyle(menu).width, 10);
-            startHeight = parseInt(document.defaultView.getComputedStyle(menu).height, 10);
-            startTop = parseInt(document.defaultView.getComputedStyle(menu).top, 10);
-            startLeft = parseInt(document.defaultView.getComputedStyle(menu).left, 10);
-            e.preventDefault();
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            
-            const deltaX = e.clientX - startX;
-            const deltaY = e.clientY - startY;
-
-            if (position.includes('right')) {
-                menu.style.width = (startWidth + deltaX) + 'px';
-            } else {
-                menu.style.width = (startWidth - deltaX) + 'px';
-                menu.style.left = (startLeft + deltaX) + 'px';
-            }
-
-            if (position.includes('bottom')) {
-                menu.style.height = (startHeight + deltaY) + 'px';
-            } else {
-                menu.style.height = (startHeight - deltaY) + 'px';
-                menu.style.top = (startTop + deltaY) + 'px';
-            }
-            
-            const buttons = menu.querySelectorAll('button');
-            buttons.forEach(btn => {
-                btn.style.width = '100%';
-                btn.style.padding = `${Math.max(6, parseInt(menu.style.height, 10)/30)}px`;
-            });
-        });
-        
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-        });
-        
-        return resizeHandle;
-    };
-    
-    // Create a container for resize handles
-    const resizeContainer = document.createElement('div');
-    resizeContainer.style.position = 'sticky';
-    resizeContainer.style.bottom = '0';
-    resizeContainer.style.width = '100%';
-    resizeContainer.style.height = '20px';
-    resizeContainer.style.zIndex = '10000';
-    
-    // Add all 4 resize handles
-    resizeContainer.appendChild(createResizeHandle('top-left'));
-    resizeContainer.appendChild(createResizeHandle('top-right'));
-    resizeContainer.appendChild(createResizeHandle('bottom-left'));
-    resizeContainer.appendChild(createResizeHandle('bottom-right'));
-    menu.appendChild(resizeContainer);
-    
-    // Menu title
-    const title = document.createElement('h3');
-    title.textContent = 'Monster Brawl Cheats (Press K to hide/show)';
-    title.style.margin = '0 0 10px 0';
-    title.style.textAlign = 'center';
-    title.style.color = '#795548';
-    menu.appendChild(title);
-
-    // Set up fetch interception
-    let iframe = document.querySelector("iframe");
-    if (!iframe) {
-        iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        document.body.append(iframe);
-    }
-
-    if (window.fetch && window.fetch.call.toString() === 'function call() { [native code] }') {
-        const call = window.fetch.call;
-        window.fetch.call = function () {
-            if (!arguments[1] || !arguments[1].includes("s.blooket.com/rc")) {
-                return call.apply(this, arguments);
-            }
-        };
-    }
-
-    // Add "Game" divider at the top
-    const gameDividerContainer = document.createElement('div');
-    gameDividerContainer.style.display = 'flex';
-    gameDividerContainer.style.alignItems = 'center';
-    gameDividerContainer.style.margin = '10px 0';
-    
-    const gameDivider = document.createElement('hr');
-    gameDivider.style.flex = '1';
-    gameDivider.style.border = '1px solid #555';
-    gameDivider.style.margin = '0 5px';
-    
-    const gameLabel = document.createElement('span');
-    gameLabel.textContent = 'Game';
-    gameLabel.style.color = '#aaa';
-    gameLabel.style.fontSize = '12px';
-    gameLabel.style.fontWeight = 'bold';
-    
-    gameDividerContainer.appendChild(gameDivider);
-    gameDividerContainer.appendChild(gameLabel);
-    gameDividerContainer.appendChild(gameDivider.cloneNode());
-    
-    menu.appendChild(gameDividerContainer);
-
-    // Auto Answer cheat (same as other menus)
-    const autoAnswerCheat = {
-        name: 'Auto Answer',
-        active: false,
-        interval: null,
-        func: () => {
-            const cheat = (async () => {
-                const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
-                const Question = stateNode.state.question || stateNode.props.client.question;
-                if (stateNode.state.question.qType != "typing") {
-                    if (stateNode.state.stage != "feedback" && !stateNode.state.feedback) {
-                        let ind;
-                        for (ind = 0; ind < Question.answers.length; ind++) {
-                            let found = false;
-                            for (let j = 0; j < Question.correctAnswers.length; j++)
-                                if (Question.answers[ind] == Question.correctAnswers[j]) {
-                                    found = true;
-                                    break;
-                                }
-                            if (found) break;
-                        }
-                        document.querySelectorAll("[class*='answerContainer']")[ind]?.click();
-                    } else document.querySelector("[class*='feedback'], [id*='feedback']")?.firstChild?.click();
-                } else Object.values(document.querySelector("[class*='typingAnswerWrapper']"))[1].children._owner.stateNode.sendAnswer?.(Question.answers[0]);
-            });
-            cheat();
-        }
-    };
-
-    // Create Auto Answer button
-    const autoAnswerBtn = document.createElement('button');
-    autoAnswerBtn.textContent = autoAnswerCheat.name;
-    autoAnswerBtn.style.display = 'block';
-    autoAnswerBtn.style.width = '100%';
-    autoAnswerBtn.style.padding = '8px';
-    autoAnswerBtn.style.margin = '5px 0';
-    autoAnswerBtn.style.borderRadius = '5px';
-    autoAnswerBtn.style.border = 'none';
-    autoAnswerBtn.style.cursor = 'pointer';
-    autoAnswerBtn.style.backgroundColor = '#795548';
-    autoAnswerBtn.style.color = 'white';
-    autoAnswerBtn.style.fontWeight = 'bold';
-    autoAnswerBtn.style.transition = 'all 0.3s';
-    
-    autoAnswerBtn.onmouseover = () => autoAnswerBtn.style.backgroundColor = '#5D4037';
-    autoAnswerBtn.onmouseout = () => autoAnswerBtn.style.backgroundColor = autoAnswerCheat.active ? '#5D4037' : '#795548';
-    
-    autoAnswerBtn.onclick = () => {
-        if (autoAnswerCheat.active && autoAnswerCheat.interval) {
-            clearInterval(autoAnswerCheat.interval);
-            autoAnswerCheat.active = false;
-            autoAnswerBtn.style.backgroundColor = '#795548';
-        } else {
-            autoAnswerCheat.interval = setInterval(autoAnswerCheat.func, 500);
-            autoAnswerCheat.active = true;
-            autoAnswerBtn.style.backgroundColor = '#5D4037';
-        }
-    };
-    
-    menu.appendChild(autoAnswerBtn);
-
-    // Monster Brawl specific cheats
-    const monsterBrawlCheats = {
-        doubleEnemyXP: {
-            name: 'Double Enemy XP',
-            func: () => {
-                const colliders = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.colliders._active.filter(x => x.callbackContext?.toString?.()?.includes?.('dmgCd'));
-                for (let i = 0; i < colliders.length; i++) {
-                    const enemies = colliders[i].object2;
-                    let _start = enemies.classType.prototype.start;
-                    enemies.classType.prototype.start = function () { _start.apply(this, arguments); this.val *= 2; };
-                    enemies.children.entries.forEach(e => e.val *= 2);
-                }
-            }
-        },
-        halfEnemySpeed: {
-            name: 'Half Enemy Speed',
-            func: () => {
-                const colliders = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.colliders._active.filter(x => x.callbackContext?.toString?.()?.includes?.('dmgCd'));
-                for (let i = 0; i < colliders.length; i++) {
-                    const enemies = colliders[i].object2;
-                    let _start = enemies.classType.prototype.start;
-                    enemies.classType.prototype.start = function () { _start.apply(this, arguments); this.speed *= 0.5; };
-                    enemies.children.entries.forEach(e => e.speed *= 0.5);
-                }
-            }
-        },
-        instantKill: {
-            name: 'Instant Kill',
-            func: () => {
-                const colliders = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.colliders._active.filter(x => x.callbackContext?.toString?.()?.includes?.('dmgCd'));
-                for (let i = 0; i < colliders.length; i++) {
-                    const enemies = colliders[i].object2;
-                    let _start = enemies.classType.prototype.start;
-                    enemies.classType.prototype.start = function () { _start.apply(this, arguments); this.hp = 1; };
-                    enemies.children.entries.forEach(e => e.hp = 1);
-                }
-            }
-        },
-        invincibility: {
-            name: 'Invincibility',
-            func: () => {
-                for (const collider of Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.colliders._active.filter(x => x.callbackContext?.toString().includes('invulnerableTime') || x.callbackContext?.toString().includes('dmgCd'))) {
-                    collider.collideCallback = () => { };
-                }
-            }
-        },
-        killEnemies: {
-            name: 'Kill Enemies',
-            func: () => {
-                Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.bodies.entries.forEach(x => x?.gameObject?.receiveDamage?.(x.gameObject.hp, 1));
-            }
-        },
-        magnet: {
-            name: 'Magnet',
-            func: () => {
-                Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.colliders._active.find(x => x.collideCallback?.toString().includes('magnetTime')).collideCallback({ active: true }, { active: true, setActive() { }, setVisible() { } });
-            }
-        },
-        maxAbilities: {
-            name: 'Max Abilities',
-            func: () => {
-                const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner;
-                for (const [ability, level] of Object.entries(stateNode.state.abilities)) {
-                    for (let i = 0; i < (10 - level); i++) {
-                        stateNode.game.current.config.sceneConfig.game.events.emit("level up", ability, stateNode.state.abilities[ability]++);
-                    }
-                }
-                stateNode.setState({
-                    level: stateNode.game.current.config.sceneConfig.level = [1, 3, 5, 10, 15, 25, 35].sort((a, b) => Math.abs(a - stateNode.state.level) - Math.abs(b - stateNode.state.level))[0] - 1
-                });
-            }
-        },
-        nextLevel: {
-            name: 'Next Level',
-            func: () => {
-                let { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner;
-                let { object1: player, object2: xp } = stateNode.game.current.config.sceneConfig.physics.world.colliders._active.find(x => x.collideCallback?.toString().includes('emit("xp'));
-                xp.get().spawn(player.x, player.y, ((e) => 1 === e ? 1 : e < 5 ? 5 : e < 10 ? 10 : e < 20 ? 20 : e < 30 ? 30 : e < 40 ? 40 : e < 50 ? 50 : 100)(stateNode.state.level) - stateNode.xp);
-            }
-        },
-        removeObstacles: {
-            name: 'Remove Obstacles',
-            func: () => {
-                Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.config.sceneConfig.physics.world.bodies.entries.forEach(body => { 
-                    try { 
-                        if (body.gameObject.frame.texture.key.includes("obstacle")) {
-                            body.gameObject.destroy(); 
-                        } 
-                    } catch { } 
-                });
-            }
-        },
-        resetHealth: {
-            name: 'Reset Health',
-            func: () => {
-                Object.values((function react(r = document.querySelector("body>div")) { 
-                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
-                })())[1].children[0]._owner.stateNode.game.current.events._events.respawn.fn();
-            }
-        }
-    };
-
-    // Create buttons for each Monster Brawl cheat
-    Object.keys(monsterBrawlCheats).forEach(key => {
-        const cheat = monsterBrawlCheats[key];
-        const btn = document.createElement('button');
-        btn.textContent = cheat.name;
-        btn.style.display = 'block';
-        btn.style.width = '100%';
-        btn.style.padding = '8px';
-        btn.style.margin = '5px 0';
-        btn.style.borderRadius = '5px';
-        btn.style.border = 'none';
-        btn.style.cursor = 'pointer';
-        btn.style.backgroundColor = '#795548';
-        btn.style.color = 'white';
-        btn.style.fontWeight = 'bold';
-        btn.style.transition = 'all 0.3s';
-        
-        btn.onmouseover = () => btn.style.backgroundColor = '#5D4037';
-        btn.onmouseout = () => btn.style.backgroundColor = '#795548';
-        
-        btn.onclick = () => {
-            cheat.func();
-        };
-        
-        menu.appendChild(btn);
-    });
-
-    // Add "Other" divider and the rest of the common menu items (All Answers Correct, Custom Name, etc.)
-    // ... (same as other menus)
-    
-    // Add "Other" divider
-    const otherDividerContainer = document.createElement('div');
-    otherDividerContainer.style.display = 'flex';
-    otherDividerContainer.style.alignItems = 'center';
-    otherDividerContainer.style.margin = '10px 0';
-    
-    const otherDivider = document.createElement('hr');
-    otherDivider.style.flex = '1';
-    otherDivider.style.border = '1px solid #555';
-    otherDivider.style.margin = '0 5px';
-    
-    const otherLabel = document.createElement('span');
-    otherLabel.textContent = 'Other';
-    otherLabel.style.color = '#aaa';
-    otherLabel.style.fontSize = '12px';
-    otherLabel.style.fontWeight = 'bold';
-    
-    otherDividerContainer.appendChild(otherDivider);
-    otherDividerContainer.appendChild(otherLabel);
-    otherDividerContainer.appendChild(otherDivider.cloneNode());
-    
-    menu.appendChild(otherDividerContainer);
-
-    // Add "All Answers Correct" button (now with looping)
-    const allAnswersCorrectBtn = document.createElement('button');
-    allAnswersCorrectBtn.textContent = 'All Answers Correct (Global)';
-    allAnswersCorrectBtn.style.display = 'block';
-    allAnswersCorrectBtn.style.width = '100%';
-    allAnswersCorrectBtn.style.padding = '8px';
-    allAnswersCorrectBtn.style.margin = '5px 0';
-    allAnswersCorrectBtn.style.borderRadius = '5px';
-    allAnswersCorrectBtn.style.border = 'none';
-    allAnswersCorrectBtn.style.cursor = 'pointer';
-    allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-    allAnswersCorrectBtn.style.color = 'white';
-    allAnswersCorrectBtn.style.fontWeight = 'bold';
-    allAnswersCorrectBtn.style.transition = 'all 0.3s';
-    
-    let allAnswersInterval = null;
-    
-    allAnswersCorrectBtn.onmouseover = () => allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-    allAnswersCorrectBtn.onmouseout = () => allAnswersCorrectBtn.style.backgroundColor = allAnswersInterval ? '#388E3C' : '#4CAF50';
-    
-    allAnswersCorrectBtn.onclick = () => {
-        if (allAnswersInterval) {
-            clearInterval(allAnswersInterval);
-            allAnswersInterval = null;
-            allAnswersCorrectBtn.style.backgroundColor = '#4CAF50';
-            return;
-        }
-        
-        const updateAllAnswers = () => {
-            const stateNode = getStateNode();
-            
-            // Modify local questions
-            for (let i = 0; i < stateNode.freeQuestions.length; i++) {
-                stateNode.freeQuestions[i].correctAnswers = [...stateNode.freeQuestions[i].answers];
-                stateNode.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-                stateNode.props.client.questions[i].correctAnswers = [...stateNode.questions[i].answers];
-            }
-
-            // Force update for all players via Firebase
-            if (stateNode.props.liveGameController) {
-                stateNode.props.liveGameController.setVal({
-                    path: 'questions',
-                    val: stateNode.questions.map(q => ({
-                        ...q,
-                        correctAnswers: [...q.answers]
-                    }))
-                });
-            }
-
+    function romanToInt(s) { const m = { 'I':1, 'V':5, 'X':10, 'L':50, 'C':100, 'D':500, 'M':1000 }; let t=0; s=String(s).toUpperCase(); for(let i=0;i<s.length;i++) { m[s[i]] < m[s[i+1]] ? t-=m[s[i]] : t+=m[s[i]]; } return t; }
+
+    const intervals = { frenzy: null, autoAnswer: null, rainbow: null, distract: null, guess: null, hackBox: null, triple: null, hack: null, choiceESP: null, passESP: null, quint: null, dblXP: null, halfSpd: null, instKill: null, invinc: null, magnet: null, autoFish: null };
+    let settings = JSON.parse(localStorage.getItem('overBlookSettings')) || { theme: 'christmas', toggleKey: 'k', autoAnswerSpeed: 10, romanMode: false, customTitle: "OverBlook | %Name%" };
+    let guiState = { isMinimized: false };
+    let originalBuy = null; let originalSend = null;
+    let cachedName = "Waiting..."; let cachedTheme = settings.theme;
+
+    const cheats = {
+        // Global
+        toggleAutoAnswer: () => { if(intervals.autoAnswer) { clearInterval(intervals.autoAnswer); intervals.autoAnswer = null; notify("Auto Answer Off"); } else { intervals.autoAnswer = setInterval(findAndClickCorrectAnswer, settings.autoAnswerSpeed); notify("Auto Answer On"); } },
+        setAnswerSpeed: (val) => { const v = parseInt(val); if(!isNaN(v)) { settings.autoAnswerSpeed = v; localStorage.setItem('overBlookSettings', JSON.stringify(settings)); if(intervals.autoAnswer) { clearInterval(intervals.autoAnswer); intervals.autoAnswer = setInterval(findAndClickCorrectAnswer, v); } notify("Speed Set: " + v + "ms"); } },
+        useAnyBlook: () => { 
             try {
-                stateNode.forceUpdate();
-            } catch {}
-        };
-        
-        updateAllAnswers(); // Run immediately
-        allAnswersInterval = setInterval(updateAllAnswers, 1500); // Then every 1.5 seconds
-        allAnswersCorrectBtn.style.backgroundColor = '#388E3C';
-    };
-    
-    menu.appendChild(allAnswersCorrectBtn);
-
-    // Add "Custom Name (Ignore Random name)" button
-    const customNameBtn = document.createElement('button');
-    customNameBtn.textContent = 'Custom Name (Ignore Random name)';
-    customNameBtn.style.display = 'block';
-    customNameBtn.style.width = '100%';
-    customNameBtn.style.padding = '8px';
-    customNameBtn.style.margin = '5px 0';
-    customNameBtn.style.borderRadius = '5px';
-    customNameBtn.style.border = 'none';
-    customNameBtn.style.cursor = 'pointer';
-    customNameBtn.style.backgroundColor = '#4CAF50';
-    customNameBtn.style.color = 'white';
-    customNameBtn.style.fontWeight = 'bold';
-    customNameBtn.style.transition = 'all 0.3s';
-    
-    customNameBtn.onmouseover = () => customNameBtn.style.backgroundColor = '#388E3C';
-    customNameBtn.onmouseout = () => customNameBtn.style.backgroundColor = '#4CAF50';
-    
-    customNameBtn.onclick = () => {
-        getStateNode().setState({ isRandom: false, client: { name: "" } });
-        document.querySelector('[class*="nameInput"]')?.focus?.();
-    };
-    
-    menu.appendChild(customNameBtn);
-
-    // Add "Lobby" divider
-    const lobbyDividerContainer = document.createElement('div');
-    lobbyDividerContainer.style.display = 'flex';
-    lobbyDividerContainer.style.alignItems = 'center';
-    lobbyDividerContainer.style.margin = '10px 0';
-    
-    const lobbyDivider = document.createElement('hr');
-    lobbyDivider.style.flex = '1';
-    lobbyDivider.style.border = '1px solid #555';
-    lobbyDivider.style.margin = '0 5px';
-    
-    const lobbyLabel = document.createElement('span');
-    lobbyLabel.textContent = 'Lobby';
-    lobbyLabel.style.color = '#aaa';
-    lobbyLabel.style.fontSize = '12px';
-    lobbyLabel.style.fontWeight = 'bold';
-    
-    lobbyDividerContainer.appendChild(lobbyDivider);
-    lobbyDividerContainer.appendChild(lobbyLabel);
-    lobbyDividerContainer.appendChild(lobbyDivider.cloneNode());
-    
-    menu.appendChild(lobbyDividerContainer);
-
-    // Add special cheats in new order with Change Blook first
-    const specialCheats = [
-        {
-            name: 'Change Blook',
-            func: () => {
-                let i = document.createElement('iframe');
-                document.body.append(i);
-                window.prompt = i.contentWindow.prompt.bind(window);
-                i.remove();
-                let { props } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner.stateNode;
-                props.liveGameController.setVal({ path: `c/${props.client.name}/b`, val: (props.client.blook = prompt("Blook Name: (Case Sensitive)")) });
+                const lobbyNode = Object.values((function react(r = document.querySelector("body>div")) { 
+                    return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); 
+                })())[1].children[0]._owner.stateNode;
+                
+                if(lobbyNode && lobbyNode.props && lobbyNode.props.blooks) {
+                    lobbyNode.props.blooks = Object.keys(lobbyNode.props.blooks).reduce((a, b) => (a[b] = lobbyNode.props.blooks[b], a[b].locked = false, a), {});
+                    notify("All Blooks Unlocked!"); 
+                } else {
+                    notify("Error: Blook data not found.");
+                }
+            } catch(e) {
+                notify("Please go to the Lobby!");
             }
         },
-        {
-            name: 'Use Any Blook',
-            func: () => {
-                let i = document.createElement('iframe');
-                document.body.append(i);
-                window.alert = i.contentWindow.alert.bind(window);
-                i.remove();
-                let blooks;
-                const { stateNode } = Object.values((function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")) })())[1].children[0]._owner;
-                const lobby = window.location.pathname.startsWith("/play/lobby"),
-                    dashboard = !lobby && window.location.pathname.startsWith("/blooks");
-                if (dashboard || lobby) {
-                    let blooks, key = lobby ? "keys" : "entries";
-                    const old = Object[key];
-                    Object[key] = function (obj) {
-                        if (!obj.Chick) return old.call(this, obj);
-                        blooks = obj;
-                        return (Object[key] = old).call(this, obj);
-                    };
-                    stateNode.render();
-                    if (lobby) stateNode.setState({ unlocks: Object.keys(blooks) });
-                    else stateNode.setState({ blookData: Object.keys(blooks).reduce((a, b) => (a[b] = (stateNode.state.blookData[b] || 1), a), {}), allSets: Object.values(blooks).reduce((a, b) => (b.set && a.includes(b.set) ? a : a.concat(b.set)), []) });
-                } else alert("This only works in lobbies or the dashboard blooks page.");
+        changeBlookIngame: (name) => { const s = getWorkingStateNode(); if(s && s.props.client) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/b`, val: name }); if(s.setState) s.setState({ blook: name }); if(s.props.client) s.props.client.blook = name; notify("Blook Changed!"); } },
+
+        // Fishing
+        toggleAutoFish: () => {
+            if(intervals.autoFish) {
+                clearInterval(intervals.autoFish); intervals.autoFish = null;
+                notify("Auto Fish Off");
+            } else {
+                intervals.autoFish = setInterval(() => {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                    const elementAtCorner = document.elementFromPoint(0, 0);
+                    if(elementAtCorner) elementAtCorner.dispatchEvent(new MouseEvent('click', { view: window, bubbles: true, cancelable: true, clientX: 0, clientY: 0 }));
+                }, 50);
+                notify("Auto Fish On");
             }
         },
-        {
-            name: 'Set Flappy Score',
-            func: () => {
-                let i = document.createElement('iframe');
-                document.body.append(i);
-                window.prompt = i.contentWindow.prompt.bind(window);
-                i.remove();
-                Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[1](parseInt(prompt("What do you want to set your score to?")) || 0);
-            }
+        setLure: (val) => { const s = getWorkingStateNode(); if(s) { s.setState({ lure: parseInt(val) }); notify("Lure set to " + val); } },
+        setWeight: (val) => { const s = getWorkingStateNode(); const w = parseWeight(val); if(s && !isNaN(w)) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}`, val: { b: s.props.client.blook, w: w } }); s.setState({ weight: w, weight2: w }); notify("Weight updated!"); } },
+        toggleFrenzy: () => { if(intervals.frenzy) { clearInterval(intervals.frenzy); intervals.frenzy = null; const s = getWorkingStateNode(); if(s) s.setState({ isFrenzy: false }); notify("Frenzy Off"); } else { intervals.frenzy = setInterval(() => { const s = getWorkingStateNode(); if(s) s.props.liveGameController.setVal({ path: `c/${s.props.client.name}`, val: { b: s.props.client.blook, w: s.state.weight, f: "Frenzy", s: true } }); }, 100); notify("Frenzy On"); } },
+        toggleDistractionRemover: () => { if(intervals.distract) { clearInterval(intervals.distract); intervals.distract = null; notify("Distractions Enabled"); } else { intervals.distract = setInterval(() => { const s = getWorkingStateNode(); if(s) s.setState({ party: "" }); }, 50); notify("Distractions Blocked"); } },
+        sendDistraction: (fish) => { const s = getWorkingStateNode(); if(s) { const w = s.state.weight || 0; s.props.liveGameController.setVal({ path: `c/${s.props.client.name}`, val: { b: s.props.client.blook, w: w, f: fish, s: true } }); notify(`Sent ${fish}!`); } },
+        
+        // Crypto
+        setCrypto: (val) => { const s = getWorkingStateNode(); const c = parseWeight(val); if(s && !isNaN(c)) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/c`, val: c }); notify("Crypto Set!"); } },
+        setPass: (p) => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/p`, val: p }); notify("Password Set!"); } },
+        stealCrypto: (name) => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/steal`, val: name }); notify(`Stealing from ${name}...`); } },
+        toggleAutoGuess: () => { if(intervals.guess) { clearInterval(intervals.guess); intervals.guess = null; notify("Auto Guess Off"); } else { intervals.guess = setInterval(() => { const s = getWorkingStateNode(); if(s?.state?.choices) s.state.choices.forEach(c => { if(c.correct) s.guess(c.text); }); }, 50); notify("Auto Guess On"); } },
+        toggleAlwaysTriple: () => { if(intervals.triple) { clearInterval(intervals.triple); intervals.triple = null; notify("Always Triple Off"); } else { intervals.triple = setInterval(() => { const s = getWorkingStateNode(); if(s?.state?.stage === "prize") s.setState({ add: s.state.crypto * 2 }); }, 50); notify("Always Triple On"); } },
+        toggleAlwaysQuintuple: () => { const s = getWorkingStateNode(); if(!intervals.quint) { if(s) s.setState({ choices: [{ type: "mult", val: 5, rate: 0.075, blook: "Brainy Bot", text: "Quintuple Crypto" }] }); intervals.quint = true; notify("Always Quintuple On"); } else { if(s) s.setState({ choices: [] }); intervals.quint = false; notify("Always Quintuple Off"); } },
+        toggleAlwaysHack: () => { if(intervals.hack) { clearInterval(intervals.hack); intervals.hack = null; notify("Always Hack Off"); } else { intervals.hack = setInterval(() => { const s = getWorkingStateNode(); if(s) s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/hack`, val: true }); }, 100); notify("Always Hack On"); } },
+        togglePassESP: () => { if(intervals.passESP) { clearInterval(intervals.passESP); intervals.passESP = null; document.querySelectorAll('.esp-pass').forEach(e=>e.remove()); notify("Pass ESP Off"); } else { intervals.passESP = setInterval(() => { const s = getWorkingStateNode(); if(s?.state?.game?.players) document.querySelectorAll('div[class^="styles__name___"]').forEach(el => { const p = s.state.game.players[el.innerText]; if(p?.p) { let d = el.querySelector('.esp-pass'); if(!d) { d = document.createElement('div'); d.className = 'esp-pass'; el.append(d); } d.innerText = p.p; } }); }, 100); notify("Pass ESP On"); } },
+        toggleChoiceESP: () => { if(intervals.choiceESP) { clearInterval(intervals.choiceESP); intervals.choiceESP = null; document.querySelectorAll('div[class^="styles__choice___"]').forEach(e => e.innerHTML = ""); notify("Choice ESP Off"); } else { intervals.choiceESP = setInterval(() => { const s = getWorkingStateNode(); if(s?.state?.choices) document.querySelectorAll('div[class^="styles__choice___"]').forEach((e, i) => { if(e.innerText === "") e.innerText = s.state.choices[i].type; }); }, 50); notify("Choice ESP On"); } },
+        toggleBlockHack: () => { if(intervals.hackBox) { clearInterval(intervals.hackBox); intervals.hackBox = null; notify("Hack Box Allowed"); } else { intervals.hackBox = setInterval(() => { const box = document.querySelector('div[class^="styles__box___"]'); if(box) box.style.display = 'none'; }, 50); notify("Hack Box Blocked"); } },
+
+        // Tower Defense
+        tdSetTokens: (val) => { const s = getWorkingStateNode(); const t = parseWeight(val); if(s && !isNaN(t)) { s.props.liveGameController.setVal({ path: `c/${s.props.client.name}/t`, val: t }); notify("Tokens Set!"); } },
+        tdSetRound: (val) => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: `r`, val: parseInt(val) }); notify("Round Set!"); } },
+        tdSetHealth: (val) => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: `h`, val: parseInt(val) }); notify("Health Set!"); } },
+        tdClearEnemies: () => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: `e`, val: {} }); notify("Enemies Cleared!"); } },
+        tdMaxTowers: () => { const s = getWorkingStateNode(); if(s) { Object.entries(s.props.liveGameController.get("towers")).forEach(([id, t]) => s.props.liveGameController.setVal({ path: `towers/${id}`, val: { ...t, level: s.props.client.blookData[t.type].levels.length - 1 }})); notify("Towers Maxed!"); } },
+        tdRemoveDucks: () => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: 'g/ducks', val: [] }); notify("Ducks Removed!"); } },
+        tdRemoveObstacles: () => { const s = getWorkingStateNode(); if(s) { s.removeObstacles(); notify("Obstacles Removed!"); } },
+        tdEarthquake: () => { const s = getWorkingStateNode(); if(s) { s.props.liveGameController.setVal({ path: 'g/eq', val: true }); notify("Earthquake!"); } },
+        tdToggleGlobalDmg: (val) => { 
+            const s = getWorkingStateNode(); 
+            if(!window.globalDamageActive) { 
+                if(s && !originalSend) { originalSend = s.props.liveGameController.send; s.props.liveGameController.send = function(msg) { if(msg.type == "attack") msg.data.damage = parseInt(val); return originalSend.apply(s.props.liveGameController, arguments); }; window.globalDamageActive = true; notify("Global Dmg On"); }
+            } else { 
+                if(s && originalSend) { s.props.liveGameController.send = originalSend; originalSend = null; } window.globalDamageActive = false; notify("Global Dmg Off");
+            } 
         },
-        {
-            name: 'Toggle Ghost Mode',
-            func: () => {
-                Object.values(document.querySelector("#phaser-bouncy"))[0].return.updateQueue.lastEffect.deps[0].current.config.sceneConfig.physics.world.bodies.entries.forEach(x => {
-                    if (!x.gameObject.frame.texture.key.startsWith("blook")) return;
-                    x.checkCollision.none = x.gameObject.alpha == 1;
-                    x.gameObject.setAlpha(x.gameObject.alpha == 1 ? 0.5 : 1);
-                });
+
+        // TD2
+        td2SetCoins: (val) => { const s = getWorkingStateNode(); const c = parseWeight(val); if(s && !isNaN(c)) { s.setState({ coins: c }); notify("Coins Set!"); } },
+        td2SetHealth: (val) => { const s = getWorkingStateNode(); if(s) s.setState({ health: parseInt(val) }); notify("Health Set!"); },
+        td2SetRound: (val) => { const s = getWorkingStateNode(); if(s) s.setState({ round: parseInt(val) }); notify("Round Set!"); },
+        td2ClearEnemies: () => { const s = getWorkingStateNode(); if(s) { s.setState({ enemies: [] }); notify("Enemies Cleared!"); } },
+        td2MaxTowers: () => { const s = getWorkingStateNode(); if(s) { s.state.towers.forEach(t => { t.stats.damage = 1e6; t.stats.range = 100; t.stats.rate = 0.01; }); s.setState({ towers: s.state.towers }); notify("Towers God Mode!"); } },
+
+        // Brawl
+        brawlInvinc: () => { if(intervals.invinc) { clearInterval(intervals.invinc); intervals.invinc = null; notify("Invincibility Off"); } else { intervals.invinc = setInterval(() => { const s = getWorkingStateNode(); if(s?.state) s.state.health.set(999999); }, 50); notify("Invincibility On"); } },
+        brawlKillAll: () => { const s = getWorkingStateNode(); if(s) { s.killAll(); notify("Enemies Killed!"); } },
+        brawlDoubleXP: () => { if(intervals.dblXP) { clearInterval(intervals.dblXP); intervals.dblXP = null; const s=getWorkingStateNode(); if(s?.state) s.state.xp.set(1); notify("Double XP Off"); } else { intervals.dblXP = setInterval(() => { const s=getWorkingStateNode(); if(s?.state) s.state.xp.set(2); }, 50); notify("Double XP On"); } },
+        brawlHalfSpeed: () => { if(intervals.halfSpd) { clearInterval(intervals.halfSpd); intervals.halfSpd = null; const s=getWorkingStateNode(); if(s?.state) s.state.speed.set(1); notify("Half Speed Off"); } else { intervals.halfSpd = setInterval(() => { const s=getWorkingStateNode(); if(s?.state) s.state.speed.set(0.5); }, 50); notify("Half Speed On"); } },
+        brawlInstantKill: () => { if(intervals.instKill) { clearInterval(intervals.instKill); intervals.instKill = null; const s=getWorkingStateNode(); if(s?.state) s.state.damage.set(1); notify("Insta Kill Off"); } else { intervals.instKill = setInterval(() => { const s=getWorkingStateNode(); if(s?.state) s.state.damage.set(1e6); }, 50); notify("Insta Kill On"); } },
+        brawlMagnet: () => { if(intervals.magnet) { clearInterval(intervals.magnet); intervals.magnet = null; const s=getWorkingStateNode(); if(s?.state) s.state.magnet.set(1); notify("Magnet Off"); } else { intervals.magnet = setInterval(() => { const s=getWorkingStateNode(); if(s?.state) s.state.magnet.set(1e6); }, 50); notify("Magnet On"); } },
+        brawlMaxAbilities: () => { const s = getWorkingStateNode(); if(s) { s.maxAbilities(); notify("Abilities Maxed!"); } },
+        brawlNextLevel: () => { const s = getWorkingStateNode(); if(s) { s.nextLevel(); notify("Next Level!"); } },
+        brawlRemoveObstacles: () => { const s = getWorkingStateNode(); if(s) { s.clearTrees(); notify("Trees Removed!"); } },
+        brawlResetHealth: () => { const s = getWorkingStateNode(); if(s) { s.resetHealth(); notify("Health Reset!"); } },
+
+        // Settings
+        startRainbow: () => {
+            if (window.rainbowInterval) return;
+            let hue = 0;
+            const masterPicker = document.getElementById('gui-master-color-picker');
+            if (masterPicker) masterPicker.disabled = true;
+            window.rainbowInterval = setInterval(() => {
+                hue = (hue + 1) % 360; const alpha = 1.0 - (settings.transparency / 100.0);
+                const accent = `hsl(${hue}, 90%, 55%)`;
+                const bgLight = `hsla(${hue}, 35%, 20%, ${alpha})`;
+                const bg = `hsla(${hue}, 35%, 15%, ${alpha})`;
+                const rootEl = document.getElementById('overblook-root');
+                if(rootEl) {
+                    rootEl.style.setProperty('--ob-accent', accent); rootEl.style.setProperty('--ob-accent-hover', accent);
+                }
+            }, 25);
+        },
+        stopRainbow: () => { 
+            clearInterval(window.rainbowInterval); 
+            window.rainbowInterval = null; 
+            const m = document.getElementById('gui-master-color-picker'); 
+            if(m) m.disabled = false; 
+            const rootEl = document.getElementById('overblook-root');
+            if(rootEl) {
+                rootEl.style.removeProperty('--ob-accent');
+                rootEl.style.removeProperty('--ob-accent-hover');
+            }
+            updateAppearance(); 
+        },
+        setTitle: (val) => { 
+            if (val.trim() === "") val = "OverBlook | %Name%";
+            settings.customTitle = val; 
+            localStorage.setItem('overBlookSettings', JSON.stringify(settings)); 
+            document.querySelector('.ob-title').innerText = val; 
+            notify("Title Set!"); 
+        },
+        setToggleKey: (val) => { if(val) { settings.toggleKey = val; localStorage.setItem('overBlookSettings', JSON.stringify(settings)); notify("Toggle Key: " + val); } },
+        resetAll: () => {
+            if(confirm("Reset all settings to default?")) {
+                localStorage.removeItem('overBlookSettings');
+                location.reload();
             }
         }
-    ];
-
-    // Create buttons for special cheats
-    specialCheats.forEach(cheat => {
-        const btn = document.createElement('button');
-        btn.textContent = cheat.name;
-        btn.style.display = 'block';
-        btn.style.width = '100%';
-        btn.style.padding = '8px';
-        btn.style.margin = '5px 0';
-        btn.style.borderRadius = '5px';
-        btn.style.border = 'none';
-        btn.style.cursor = 'pointer';
-        btn.style.backgroundColor = '#607D8B';
-        btn.style.color = 'white';
-        btn.style.fontWeight = 'bold';
-        btn.style.transition = 'all 0.3s';
-        
-        btn.onmouseover = () => btn.style.backgroundColor = '#455A64';
-        btn.onmouseout = () => btn.style.backgroundColor = '#607D8B';
-        
-        btn.onclick = () => {
-            cheat.func();
-        };
-        
-        menu.appendChild(btn);
-    });
-
-    // Add divider with "Menu Settings" label
-    const settingsDividerContainer = document.createElement('div');
-    settingsDividerContainer.style.display = 'flex';
-    settingsDividerContainer.style.alignItems = 'center';
-    settingsDividerContainer.style.margin = '10px 0';
-    
-    const settingsDivider = document.createElement('hr');
-    settingsDivider.style.flex = '1';
-    settingsDivider.style.border = '1px solid #555';
-    settingsDivider.style.margin = '0 5px';
-    
-    const settingsLabel = document.createElement('span');
-    settingsLabel.textContent = 'Menu Settings';
-    settingsLabel.style.color = '#aaa';
-    settingsLabel.style.fontSize = '12px';
-    settingsLabel.style.fontWeight = 'bold';
-    
-    settingsDividerContainer.appendChild(settingsDivider);
-    settingsDividerContainer.appendChild(settingsLabel);
-    settingsDividerContainer.appendChild(settingsDivider.cloneNode());
-    
-    menu.appendChild(settingsDividerContainer);
-
-    // Add color picker and rainbow toggle with better visibility
-    const colorPickerContainer = document.createElement('div');
-    colorPickerContainer.style.margin = '10px 0';
-    colorPickerContainer.style.display = 'flex';
-    colorPickerContainer.style.alignItems = 'center';
-    colorPickerContainer.style.justifyContent = 'space-between';
-    
-    const colorLabel = document.createElement('span');
-    colorLabel.textContent = 'Menu Color:';
-    colorLabel.style.marginRight = '10px';
-    colorLabel.style.fontSize = '14px';
-    colorLabel.style.color = '#fff';
-    
-    const colorPicker = document.createElement('input');
-    colorPicker.type = 'color';
-    colorPicker.value = '#282832';
-    colorPicker.style.width = '30px';
-    colorPicker.style.height = '30px';
-    colorPicker.style.cursor = 'pointer';
-    colorPicker.style.border = 'none';
-    colorPicker.style.backgroundColor = 'transparent';
-    
-    const rainbowLabel = document.createElement('label');
-    rainbowLabel.style.display = 'flex';
-    rainbowLabel.style.alignItems = 'center';
-    rainbowLabel.style.cursor = 'pointer';
-    rainbowLabel.style.marginLeft = '10px';
-    
-    const rainbowCheckbox = document.createElement('input');
-    rainbowCheckbox.type = 'checkbox';
-    rainbowCheckbox.style.marginRight = '5px';
-    
-    const rainbowText = document.createElement('span');
-    rainbowText.textContent = 'Rainbow';
-    rainbowText.style.fontSize = '14px';
-    rainbowText.style.color = '#fff';
-    
-    rainbowLabel.appendChild(rainbowCheckbox);
-    rainbowLabel.appendChild(rainbowText);
-    
-    colorPickerContainer.appendChild(colorLabel);
-    colorPickerContainer.appendChild(colorPicker);
-    colorPickerContainer.appendChild(rainbowLabel);
-    
-    menu.appendChild(colorPickerContainer);
-
-    // Add reset resize button
-    const resetResizeBtn = document.createElement('button');
-    resetResizeBtn.textContent = 'Reset Size';
-    resetResizeBtn.style.display = 'block';
-    resetResizeBtn.style.width = '100%';
-    resetResizeBtn.style.padding = '8px';
-    resetResizeBtn.style.margin = '5px 0';
-    resetResizeBtn.style.borderRadius = '5px';
-    resetResizeBtn.style.border = 'none';
-    resetResizeBtn.style.cursor = 'pointer';
-    resetResizeBtn.style.backgroundColor = '#607D8B';
-    resetResizeBtn.style.color = 'white';
-    resetResizeBtn.style.fontWeight = 'bold';
-    resetResizeBtn.style.transition = 'all 0.3s';
-    
-    resetResizeBtn.onmouseover = () => resetResizeBtn.style.backgroundColor = '#455A64';
-    resetResizeBtn.onmouseout = () => resetResizeBtn.style.backgroundColor = '#607D8B';
-    
-    resetResizeBtn.onclick = () => {
-        menu.style.width = '350px';
-        menu.style.height = '450px';
-        menu.style.left = '';
-        menu.style.right = '10px';
-        menu.style.top = '10px';
-        menu.style.transform = '';
     };
+
+    // ==========================================
+    // UI/UX ENGINE (OverBlook)
+    // ==========================================
+
+    const styles = `
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+        :root { --ob-bg: rgba(20, 20, 30, 0.65); --ob-border: rgba(255, 255, 255, 0.1); --ob-text: #fff; --ob-text-dim: #ddd; --ob-accent: #00c7ff; --ob-accent-hover: #009ecb; --ob-radius: 12px; --ob-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); --ob-blur: blur(16px); --ob-font: 'Nunito', sans-serif; }
+        .theme-glass {}
+        .theme-native { --ob-bg: #ffffff; --ob-border: #e0e0e0; --ob-text: #333; --ob-text-dim: #555; --ob-shadow: 0 4px 0 rgba(0,0,0,0.1); --ob-blur: none; }
+        .theme-terminal { --ob-bg: #000; --ob-border: #00ff00; --ob-text: #00ff00; --ob-text-dim: #00aa00; --ob-accent: #00aa00; --ob-accent-hover: #00ff00; --ob-radius: 0px; --ob-font: 'Courier New', monospace; }
+        /* RGB: Thicker border + intense glow */
+        .theme-rgb { 
+            --ob-bg: rgba(0, 0, 0, 0.85); 
+            --ob-border: transparent; 
+            border: 3px solid transparent;
+            animation: rgbGlow 3s linear infinite; 
+        }
+        @keyframes rgbGlow {
+            0% { box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000; border-color: #ff0000; }
+            33% { box-shadow: 0 0 15px #00ff00, 0 0 30px #00ff00; border-color: #00ff00; }
+            66% { box-shadow: 0 0 15px #0000ff, 0 0 30px #0000ff; border-color: #0000ff; }
+            100% { box-shadow: 0 0 15px #ff0000, 0 0 30px #ff0000; border-color: #ff0000; }
+        }
+        .theme-christmas { 
+            --ob-bg: rgba(100, 0, 0, 0.6); 
+            --ob-border: rgba(255,255,255,0.3); 
+            --ob-accent: #27ae60; 
+            --ob-accent-hover: #2ecc71; 
+            --ob-text: #fff; 
+            --ob-text-dim: #eee; 
+            --ob-blur: blur(12px);
+        }
+        .theme-christmas::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1;
+            background-image: radial-gradient(white 3px, transparent 4px), radial-gradient(white 2px, transparent 3px);
+            background-size: 60px 60px, 40px 40px;
+            animation: snow 4s linear infinite; opacity: 0.4;
+        }
+        @keyframes snow { 0% {background-position: 0 0, 0 0;} 100% {background-position: 0 200px, 0 100px;} }
+        
+        #overblook-root { position: fixed; top: 50px; left: 50px; width: 700px; height: 500px; background: var(--ob-bg); backdrop-filter: var(--ob-blur); border: 1px solid var(--ob-border); border-radius: var(--ob-radius); box-shadow: var(--ob-shadow); color: var(--ob-text); font-family: var(--ob-font); z-index: 999999; display: flex; flex-direction: column; overflow: hidden; }
+        #overblook-root.minimized { width: 60px; height: 60px; border-radius: 50%; cursor: pointer; background: var(--ob-accent); border: 2px solid #fff; }
+        #overblook-root.minimized * { display: none !important; }
+        #overblook-root.minimized::after { content: 'B'; display: flex !important; justify-content: center; align-items: center; width: 100%; height: 100%; font-size: 30px; font-weight: 900; color: #fff; }
+        #ob-header { display: flex; align-items: center; padding: 15px; border-bottom: 1px solid var(--ob-border); user-select: none; }
+        .ob-profile { display: flex; align-items: center; gap: 10px; flex-grow: 1; }
+        .ob-title { font-weight: 900; font-size: 1.2rem; }
+        .ob-controls { display: flex; gap: 10px; }
+        .ob-ctrl-btn { cursor: pointer; opacity: 0.7; transition: 0.2s; } .ob-ctrl-btn:hover { opacity: 1; }
+        #ob-body { display: flex; flex-grow: 1; overflow: hidden; position: relative; }
+        #ob-sidebar { width: 150px; background: rgba(0,0,0,0.1); display: flex; flex-direction: column; padding: 10px; gap: 5px; border-right: 1px solid var(--ob-border); overflow-y: auto; }
+        .ob-tab { padding: 10px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.9rem; color: var(--ob-text-dim); transition: 0.2s; text-align: left; background: transparent; border: none; }
+        .ob-tab:hover { background: rgba(255,255,255,0.05); color: var(--ob-text); }
+        .ob-tab.active { background: var(--ob-accent); color: #fff; }
+        #ob-content { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        #ob-search { width: 95%; padding: 10px 15px; border-radius: 8px; border: 1px solid var(--ob-border); background: rgba(0,0,0,0.2); color: var(--ob-text); font-family: var(--ob-font); outline: none; margin-bottom: 10px; }
+        .ob-card { background: rgba(255,255,255,0.03); border: 1px solid var(--ob-border); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; }
+        .ob-card:hover { transform: translateY(-2px); background: rgba(255,255,255,0.06); border-color: var(--ob-accent); }
+        .ob-card-info { display: flex; flex-direction: column; }
+        .ob-card-title { font-weight: 700; font-size: 1rem; }
+        .ob-card-desc { font-size: 0.75rem; color: var(--ob-text-dim); margin-top: 2px; }
+        .ob-btn { padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; font-weight: 700; background: var(--ob-accent); color: #fff; transition: 0.2s; font-family: var(--ob-font); }
+        .ob-btn:hover { background: var(--ob-accent-hover); box-shadow: 0 0 10px var(--ob-accent); }
+        .ob-btn.toggle-off { background: #444; color: #bbb; }
+        .ob-input { padding: 6px; border-radius: 6px; border: 1px solid var(--ob-border); background: rgba(0,0,0,0.3); color: var(--ob-text); width: 80px; text-align: center; margin-right: 5px; }
+        /* Assistant pinned to window */
+        #ob-assistant { position: absolute; bottom: 15px; right: 15px; display: flex; align-items: flex-end; pointer-events: none; opacity: 0; transition: 0.3s; transform: translateY(20px); z-index: 1000000; }
+        #overblook-root:hover #ob-assistant { opacity: 1; transform: translateY(0); }
+        .assistant-bubble { background: #fff; color: #000; padding: 8px 12px; border-radius: 12px 12px 0 12px; font-size: 0.8rem; font-weight: 700; margin-right: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); max-width: 150px; }
+        .assistant-img { width: 60px; height: 60px; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3)); }
+        #ob-toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000000; display: flex; flex-direction: column; gap: 10px; }
+        .ob-toast { background: var(--ob-bg); backdrop-filter: blur(10px); border: 1px solid var(--ob-accent); color: var(--ob-text); padding: 12px 20px; border-radius: 8px; font-family: var(--ob-font); font-weight: 700; box-shadow: 0 5px 15px rgba(0,0,0,0.3); transform: translateX(100%); animation: slideIn 0.3s forwards; }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        .esp-pass { color: #00c7ff; font-weight: bold; font-size: 0.8rem; background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 4px; margin-top: 2px; position: absolute; top: 0; right: 0; }
+        .changelog-entry { margin-bottom: 15px; } .changelog-entry h3, .changelog-entry p { text-align: center; margin-bottom: 15px; color: var(--ob-text-dim); } .changelog-entry h3 { color: var(--ob-accent); font-size: 1.1em; } .changelog-entry h4 { color: var(--ob-text); margin-bottom: 5px; border-bottom: 1px solid var(--ob-border); padding-bottom: 3px; } .changelog-entry ul { list-style-type: '» '; padding-left: 20px; margin: 0; } .changelog-entry li { margin-bottom: 5px; color: var(--ob-text-dim); }
+    `;
+    const styleEl = document.createElement('style'); styleEl.innerHTML = styles; document.head.appendChild(styleEl);
+
+    // ==========================================
+    // UI CONSTRUCTION
+    // ==========================================
+    const root = document.createElement('div'); root.id = 'overblook-root'; root.className = `theme-${settings.theme}`;
+    const megabotImg = "https://ac.blooket.com/marketassets/blooks/megabot.svg"; 
+    const santaImg = "https://ac.blooket.com/marketassets/blooks/santaclaus.svg";
+    const earthImg = "https://ac.blooket.com/marketassets/blooks/earth.svg";
+    const starsImg = "https://ac.blooket.com/marketassets/blooks/stars.svg";
+    const rainbowImg = "https://ac.blooket.com/marketassets/blooks/rainbowastronaut.svg";
     
-    menu.appendChild(resetResizeBtn);
-    
-    // Add close button
-    const closeBtn = document.createElement('button');
-    closeBtn.textContent = 'Close Menu';
-    closeBtn.style.display = 'block';
-    closeBtn.style.width = '100%';
-    closeBtn.style.padding = '8px';
-    closeBtn.style.margin = '5px 0';
-    closeBtn.style.borderRadius = '5px';
-    closeBtn.style.border = 'none';
-    closeBtn.style.cursor = 'pointer';
-    closeBtn.style.backgroundColor = '#f44336';
-    closeBtn.style.color = 'white';
-    closeBtn.style.fontWeight = 'bold';
-    
-    closeBtn.onmouseover = () => closeBtn.style.backgroundColor = '#d32f2f';
-    closeBtn.onmouseout = () => closeBtn.style.backgroundColor = '#f44336';
-    
-    closeBtn.onclick = () => {
-        if (rainbowInterval) clearInterval(rainbowInterval);
-        if (allAnswersInterval) clearInterval(allAnswersInterval);
-        menu.remove();
+    // Map themes to images
+    const themeImages = {
+        "christmas": santaImg,
+        "native": earthImg,
+        "glass": starsImg,
+        "rgb": rainbowImg,
+        "terminal": megabotImg
     };
-    
-    menu.appendChild(closeBtn);
-    
-    // Rainbow animation variables
-    let rainbowInterval = null;
-    let hue = 0;
-    
-    // Color picker event
-    colorPicker.addEventListener('input', () => {
-        if (rainbowInterval) {
-            clearInterval(rainbowInterval);
-            rainbowInterval = null;
-            rainbowCheckbox.checked = false;
+
+    root.innerHTML = `
+        <div id="ob-header"><div class="ob-profile"><span class="ob-title">Waiting...</span></div><div class="ob-controls"><span class="ob-ctrl-btn" id="ob-min">_</span><span class="ob-ctrl-btn" id="ob-close">X</span></div></div>
+        <div id="ob-body"><div id="ob-sidebar"></div><div id="ob-content"><input type="text" id="ob-search" placeholder="Search cheats..."><div id="ob-cards-container"></div></div></div>
+        <div id="ob-assistant"><div class="assistant-bubble" id="ob-assist-text">I'm here to help!</div><img src="${themeImages[settings.theme] || megabotImg}" class="assistant-img" id="ob-helper-img"></div>
+    `;
+    document.body.appendChild(root);
+    const toastContainer = document.createElement('div'); toastContainer.id = 'ob-toast-container'; document.body.appendChild(toastContainer);
+
+    // Dynamic Name Loading Loop - FLICKER FIXED
+    setInterval(() => {
+        const s = getWorkingStateNode();
+        
+        // 1. Title Logic
+        const titleEl = document.querySelector('.ob-title');
+        if(titleEl) {
+            if(s?.props?.client?.name) {
+                cachedName = s.props.client.name; // Update cache only if name is present
+            }
+            // Always use cached name to prevent reverting to "Waiting..."
+            const finalTitle = settings.customTitle.replace('%Name%', cachedName);
+            if(titleEl.innerText !== finalTitle) titleEl.innerText = finalTitle;
         }
-        menu.style.backgroundColor = colorPicker.value + 'e6';
-    });
-    
-    // Rainbow checkbox event
-    rainbowCheckbox.addEventListener('change', () => {
-        if (rainbowCheckbox.checked) {
-            rainbowInterval = setInterval(() => {
-                hue = (hue + 1) % 360;
-                menu.style.backgroundColor = `hsla(${hue}, 80%, 50%, 0.9)`;
-            }, 50);
-        } else if (rainbowInterval) {
-            clearInterval(rainbowInterval);
-            rainbowInterval = null;
-            menu.style.backgroundColor = colorPicker.value + 'e6';
+
+        // 2. Assistant Image Logic
+        const helper = document.getElementById('ob-helper-img');
+        if(helper) {
+            // Only change image if theme has changed, ignore loop otherwise
+            const desiredSrc = themeImages[settings.theme] || megabotImg;
+            if(cachedTheme !== settings.theme || helper.getAttribute('src') !== desiredSrc) {
+                helper.src = desiredSrc;
+                cachedTheme = settings.theme;
+            }
         }
-    });
+    }, 500);
 
-    document.body.appendChild(menu);
-}
+    function notify(msg) { const t=document.createElement('div'); t.className='ob-toast'; t.innerText=msg; toastContainer.appendChild(t); setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},3000); }
+    function createCard(parent, title, desc, control) { 
+        const c=document.createElement('div'); c.className='ob-card'; c.dataset.name=title.toLowerCase();
+        const i=document.createElement('div'); i.className='ob-card-info'; i.innerHTML=`<span class="ob-card-title">${title}</span><span class="ob-card-desc">${desc}</span>`;
+        c.append(i, control); parent.appendChild(c);
+        c.onmouseenter = () => document.getElementById('ob-assist-text').innerText = desc;
+        c.onmouseleave = () => document.getElementById('ob-assist-text').innerText = "I'm here to help!";
+    }
+    function buildToggle(on, off) { const b=document.createElement('button'); b.className='ob-btn toggle-off'; b.innerText="OFF"; b.onclick=()=>{if(b.innerText==="ON"){off();b.innerText="OFF";b.classList.add('toggle-off')}else{on();b.innerText="ON";b.classList.remove('toggle-off')}}; return b; }
+    function buildInputBtn(ph, txt, act) { const d=document.createElement('div'); d.style.display='flex'; const i=document.createElement('input'); i.className='ob-input'; i.placeholder=ph; const b=document.createElement('button'); b.className='ob-btn'; b.innerText=txt; b.onclick=()=>act(i.value); d.append(i,b); return d; }
+    function buildBtn(txt, act) { const b=document.createElement('button'); b.className='ob-btn'; b.innerText=txt; b.onclick=act; return b; }
+    function buildDropdown(opts, act) { const d=document.createElement('div'); d.style.display='flex'; const s=document.createElement('select'); s.className='ob-input'; s.style.width='100px'; opts.forEach(o=>s.add(new Option(o,o))); const b=document.createElement('button'); b.className='ob-btn'; b.innerText="Send"; b.onclick=()=>act(s.value); d.append(s,b); return d; }
 
+    // ==========================================
+    // CONTENT POPULATION
+    // ==========================================
+    const tabs = {
+        "All": [], // Placeholder
+        "Global": [
+            { t: "Auto Answer", d: "Auto-answers correct options", c: buildToggle(cheats.toggleAutoAnswer, cheats.toggleAutoAnswer) },
+            { t: "Answer Speed", d: "Set delay in ms (Lower = Faster)", c: buildInputBtn("10", "Set", cheats.setAnswerSpeed) },
+            { t: "Use Any Blook", d: "Unlock all blooks (Lobby only)", c: buildBtn("Unlock", cheats.useAnyBlook) },
+            { t: "Change Blook", d: "Change blook ingame (Name)", c: buildInputBtn("Name", "Set", cheats.changeBlookIngame) }
+        ],
+        "Fishing": [
+            { t: "Auto Fish", d: "Auto click + answer (50ms)", c: buildToggle(cheats.toggleAutoFish, cheats.toggleAutoFish) },
+            { t: "Frenzy", d: "Triggers frenzy event", c: buildToggle(cheats.toggleFrenzy, cheats.toggleFrenzy) },
+            { t: "Set Weight", d: "Set fish weight (supports 'lucas')", c: buildInputBtn("Weight", "Set", cheats.setWeight) },
+            { t: "Set Lure", d: "Change your lure (Level 1-5)", c: buildInputBtn("Level", "Set", cheats.setLure) },
+            { t: "No Distractions", d: "Removes big fish animations", c: buildToggle(cheats.toggleDistractionRemover, cheats.toggleDistractionRemover) },
+            { t: "Send Distraction", d: "Spam big fish to others", c: buildDropdown(["Crab","Jellyfish","Frog","Pufferfish","Octopus","Narwhal","Megalodon","Blobfish"], cheats.sendDistraction) }
+        ],
+        "Crypto": [
+            { t: "Password ESP", d: "See everyone's passwords", c: buildToggle(cheats.togglePassESP, cheats.togglePassESP) },
+            { t: "Choice ESP", d: "See what's in prize boxes", c: buildToggle(cheats.toggleChoiceESP, cheats.toggleChoiceESP) },
+            { t: "Auto Guess", d: "Auto-guesses passwords", c: buildToggle(cheats.toggleAutoGuess, cheats.toggleAutoGuess) },
+            { t: "Always Triple", d: "Triples crypto on win", c: buildToggle(cheats.toggleAlwaysTriple, cheats.toggleAlwaysTriple) },
+            { t: "Always Quintuple", d: "Forces x5 Crypto option", c: buildToggle(cheats.toggleAlwaysQuintuple, cheats.toggleAlwaysQuintuple) },
+            { t: "Always Hack", d: "Forces Hack option", c: buildToggle(cheats.toggleAlwaysHack, cheats.toggleAlwaysHack) },
+            { t: "Set Crypto", d: "Set your crypto balance", c: buildInputBtn("Amount", "Set", cheats.setCrypto) },
+            { t: "Set Password", d: "Set your own password", c: buildInputBtn("Pass", "Set", cheats.setPass) },
+            { t: "Steal Crypto", d: "Steal from a specific player", c: buildInputBtn("Name", "Steal", cheats.stealCrypto) },
+            { t: "Block Hack", d: "Prevents getting hacked", c: buildToggle(cheats.toggleBlockHack, cheats.toggleBlockHack) }
+        ],
+        "Tower Def": [
+            { t: "Max Towers", d: "Upgrades all towers", c: buildBtn("Max", cheats.tdMaxTowers) },
+            { t: "Clear Enemies", d: "Wipes the map", c: buildBtn("Clear", cheats.tdClearEnemies) },
+            { t: "Set Tokens", d: "Sets your tokens", c: buildInputBtn("Amount", "Set", cheats.tdSetTokens) },
+            { t: "Set Round", d: "Skip to round", c: buildInputBtn("Round", "Set", cheats.tdSetRound) },
+            { t: "Set Health", d: "Set your HP", c: buildInputBtn("HP", "Set", cheats.tdSetHealth) },
+            { t: "Remove Ducks", d: "Begone ducks", c: buildBtn("Remove", cheats.tdRemoveDucks) },
+            { t: "Remove Obstacles", d: "Clear trees/rocks", c: buildBtn("Remove", cheats.tdRemoveObstacles) },
+            { t: "Earthquake", d: "Trigger earthquake", c: buildBtn("Trigger", cheats.tdEarthquake) },
+            { t: "Global Damage", d: "Set damage for all towers", c: (() => { const d=document.createElement('div'); d.style.display='flex'; const i=document.createElement('input'); i.className='ob-input'; i.placeholder='Dmg'; const b=buildToggle(()=>cheats.tdToggleGlobalDmg(i.value), cheats.tdToggleGlobalDmg); d.append(i,b); return d; })() }
+        ],
+        "Tower Def 2": [
+            { t: "God Mode Towers", d: "Inf Dmg/Range/FireRate", c: buildBtn("Enable", cheats.td2MaxTowers) },
+            { t: "Clear Enemies", d: "Wipe map", c: buildBtn("Clear", cheats.td2ClearEnemies) },
+            { t: "Set Coins", d: "Sets your coins", c: buildInputBtn("Amount", "Set", cheats.td2SetCoins) },
+            { t: "Set Health", d: "Set your HP", c: buildInputBtn("HP", "Set", cheats.td2SetHealth) },
+            { t: "Set Round", d: "Set current round", c: buildInputBtn("Round", "Set", cheats.td2SetRound) }
+        ],
+        "Brawl": [
+            { t: "Invincibility", d: "Infinite Health", c: buildToggle(cheats.brawlInvinc, cheats.brawlInvinc) },
+            { t: "Double XP", d: "2x XP Gain", c: buildToggle(cheats.brawlDoubleXP, cheats.brawlDoubleXP) },
+            { t: "Half Speed", d: "Slow Enemies", c: buildToggle(cheats.brawlHalfSpeed, cheats.brawlHalfSpeed) },
+            { t: "Instant Kill", d: "1-Hit KO", c: buildToggle(cheats.brawlInstantKill, cheats.brawlInstantKill) },
+            { t: "Magnet", d: "Infinite Magnet Range", c: buildToggle(cheats.brawlMagnet, cheats.brawlMagnet) },
+            { t: "Kill All", d: "Kill all enemies", c: buildBtn("Kill", cheats.brawlKillAll) },
+            { t: "Max Abilities", d: "Max current skills", c: buildBtn("Max", cheats.brawlMaxAbilities) },
+            { t: "Next Level", d: "Level up", c: buildBtn("Lvl Up", cheats.brawlNextLevel) },
+            { t: "Remove Obstacles", d: "Clear map", c: buildBtn("Remove", cheats.brawlRemoveObstacles) },
+            { t: "Reset Health", d: "Heal to full", c: buildBtn("Heal", cheats.brawlResetHealth) }
+        ],
+        "Settings": [
+            { t: "Theme", d: "Change UI Look", c: (() => { const s=document.createElement('select'); s.className='ob-input'; s.style.width='100px'; ['glass','native','terminal','rgb','christmas'].forEach(th=>s.add(new Option(th,th))); s.value=settings.theme; s.onchange=()=>{root.className=`theme-${s.value}`;settings.theme=s.value;localStorage.setItem('overBlookSettings',JSON.stringify(settings));}; return s; })() },
+            { t: "Toggle Key", d: "Key to hide menu", c: buildInputBtn("k", "Set", cheats.setToggleKey) },
+            { t: "Roman Input Mode", d: "Type I, V, X for numbers", c: buildToggle(()=>{settings.romanMode=true; notify("Roman Mode ON");}, ()=>{settings.romanMode=false; notify("Roman Mode OFF");}) },
+            { t: "Rainbow Mode", d: "Cycle colors", c: buildToggle(cheats.startRainbow, cheats.stopRainbow) },
+            { t: "Custom Title", d: "Change menu name", c: buildInputBtn("Title", "Set", cheats.setTitle) },
+            { t: "Reset All", d: "Reset everything", c: buildBtn("Reset", cheats.resetAll) }
+        ],
+        "Changelog": [
+            { t: "Made By", d: "Ocean_Water (Discord) / Alwaysadvancing (Github)", c: document.createElement('span') },
+            { t: "V44", d: "Revamped RGB Theme (Thicker + Glowing).", c: document.createElement('span') },
+            { t: "V43", d: "Fixed 'Use Any Blook' using exact raw logic.", c: document.createElement('span') },
+            { t: "V42", d: "Fixed all flickering (Title/Helper) via state caching.", c: document.createElement('span') },
+            { t: "V41", d: "Added theme-specific helpers, glowing RGB mode, and fixed 'Use Any Blook' logic.", c: document.createElement('span') },
+            { t: "V40", d: "Fixed all flickering issues (Title & Helper).", c: document.createElement('span') },
+            { t: "V39", d: "Fixed Title stability & Reset logic. Instant load.", c: document.createElement('span') },
+            { t: "V38", d: "Fixed Auto Fish logic (Corner Clicker method)", c: document.createElement('span') },
+            { t: "V37", d: "Made minimized circle draggable. Auto Fish now independent from Auto Answer.", c: document.createElement('span') },
+            { t: "V36", d: "Fixed Rainbow toggle & Snow. Improved Auto Fish inputs.", c: document.createElement('span') },
+            { t: "V35", d: "Fixed Title flashing & improved Lobby check.", c: document.createElement('span') },
+            { t: "V34", d: "Bug fixes & Lobby check improvement.", c: document.createElement('span') },
+            { t: "V33", d: "Fixed loading bug.", c: document.createElement('span') },
+            { t: "V32", d: "Added 'All' tab & 'Use Any Blook'.", c: document.createElement('span') },
+            { t: "V31", d: "Animated Christmas theme & Keybind setting", c: document.createElement('span') },
+            { t: "V30", d: "Redesigned UI (OverBlook) & Holiday update", c: document.createElement('span') },
+            { t: "V26", d: "Added TD2 cheats & Title customization", c: document.createElement('span') },
+            { t: "V25", d: "Added Brawl & TD cheats", c: document.createElement('span') },
+            { t: "V24", d: "Added Crypto features.", c: document.createElement('span') },
+            { t: "V23", d: "Fixed Settings panel.", c: document.createElement('span') },
+            { t: "V22", d: "Added Changelog.", c: document.createElement('span') },
+            { t: "V21", d: "Crypto ESPs.", c: document.createElement('span') },
+            { t: "V20", d: "Triple Crypto.", c: document.createElement('span') },
+            { t: "V19", d: "Full Crypto Suite.", c: document.createElement('span') },
+            { t: "V18", d: "Crypto & TD expansion.", c: document.createElement('span') },
+            { t: "V17", d: "Infinity Lucas.", c: document.createElement('span') },
+            { t: "V16", d: "Fixed Remove Distractions.", c: document.createElement('span') },
+            { t: "V15", d: "Fixed Send Distractions.", c: document.createElement('span') },
+            { t: "V12", d: "Roman Numerals.", c: document.createElement('span') },
+            { t: "V11", d: "Full Rainbow.", c: document.createElement('span') },
+            { t: "V10", d: "Polishing.", c: document.createElement('span') },
+            { t: "V9", d: "Suffix support.", c: document.createElement('span') },
+            { t: "V7", d: "Recursion fix.", c: document.createElement('span') },
+            { t: "V6", d: "Server-side logic.", c: document.createElement('span') },
+            { t: "V1", d: "Inception.", c: document.createElement('span') }
+        ]
+    };
 
+    // Aggregate "All" Tab
+    tabs["All"] = [...tabs.Global, ...tabs.Fishing, ...tabs.Crypto, ...tabs["Tower Def"], ...tabs["Tower Def 2"], ...tabs.Brawl];
 
-    // Set up button event listeners
-    fishingBtn.onclick = createFishingMenu;
-    cryptoBtn.onclick = createCryptoMenu;
-    monsterBrawlBtn.onclick = createMonsterBrawlMenu;
-    td2Btn.onclick = () => { modePopup.remove(); createTD2menu(); };
-    battleRoyaleBtn.onclick = () => { modePopup.remove(); createBattleRoyaleMenu(); };
+    // Render logic
+    const sb = document.getElementById('ob-sidebar'); const ct = document.getElementById('ob-cards-container');
+    Object.keys(tabs).forEach((n,i) => { const b=document.createElement('button'); b.className=`ob-tab ${i===0?'active':''}`; b.innerText=n; b.onclick=()=>{document.querySelectorAll('.ob-tab').forEach(t=>t.classList.remove('active')); b.classList.add('active'); ct.innerHTML=''; tabs[n].forEach(x=>createCard(ct,x.t,x.d,x.c));}; sb.appendChild(b); });
+    ct.innerHTML=''; tabs["All"].forEach(x=>createCard(ct,x.t,x.d,x.c));
 
-    modePopup.appendChild(fishingBtn);
-    modePopup.appendChild(cryptoBtn);
-    modePopup.appendChild(td2Btn);
-    modePopup.appendChild(battleRoyaleBtn);
-    modePopup.appendChild(monsterBrawlBtn);
-    
+    // Dragging & Interactions
+    const h = document.getElementById('ob-header'); let d=false,ox,oy; 
+    root.onmousedown = (e) => {
+        if(guiState.isMinimized || e.target.closest('#ob-header')) {
+            d = true; ox = e.clientX - root.offsetLeft; oy = e.clientY - root.offsetTop;
+        }
+    };
+    document.onmousemove = e => { if(d) { root.style.left = (e.clientX - ox) + 'px'; root.style.top = (e.clientY - oy) + 'px'; } };
+    document.onmouseup = () => d = false;
 
+    document.getElementById('ob-min').onclick=()=>{guiState.isMinimized=!guiState.isMinimized; root.classList.toggle('minimized', guiState.isMinimized);};
+    root.onclick=e=>{if(guiState.isMinimized&&e.target===root){guiState.isMinimized=false;root.classList.remove('minimized');}};
+    document.getElementById('ob-close').onclick=()=>{root.remove(); document.getElementById('ob-toast-container').remove(); styleEl.remove();};
+    document.getElementById('ob-search').oninput=e=>{const v=e.target.value.toLowerCase(); document.querySelectorAll('.ob-card').forEach(c=>c.style.display=c.dataset.name.includes(v)?'flex':'none');};
+    document.addEventListener('keydown',e=>{if(e.key.toLowerCase()===settings.toggleKey.toLowerCase())root.style.display=root.style.display==='none'?'flex':'none';});
 
-
-
-    document.body.appendChild(modePopup);
-
-
-
+    notify("OverBlook Loaded!");
 })();
