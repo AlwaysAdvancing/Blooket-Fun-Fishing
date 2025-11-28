@@ -320,7 +320,7 @@
         "Fishing": [
             { t: "Auto Fish", d: "Auto click + answer (50ms)", c: buildToggle(cheats.toggleAutoFish, cheats.toggleAutoFish) },
             { t: "Frenzy", d: "Triggers frenzy event", c: buildToggle(cheats.toggleFrenzy, cheats.toggleFrenzy) },
-            { t: "Set Weight", d: "Set fish weight (supports 'lucas')", c: buildInputBtn("Weight", "Set", cheats.setWeight) },
+            { t: "Set Weight", d: "Set fish weight (supports stuff like K, M, B, T, Etc.)", c: buildInputBtn("Weight", "Set", cheats.setWeight) },
             { t: "Set Lure", d: "Change your lure (Level 1-5)", c: buildInputBtn("Level", "Set", cheats.setLure) },
             { t: "No Distractions", d: "Removes big fish animations", c: buildToggle(cheats.toggleDistractionRemover, cheats.toggleDistractionRemover) },
             { t: "Send Distraction", d: "Spam big fish to others", c: buildDropdown(["Crab","Jellyfish","Frog","Pufferfish","Octopus","Narwhal","Megalodon","Blobfish"], cheats.sendDistraction) }
