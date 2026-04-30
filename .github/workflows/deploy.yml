@@ -1,4 +1,4 @@
-name: School-Update-Sync
+name: Deploy to Firebase
 on:
   push:
     branches:
@@ -7,10 +7,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@master
-        with:
-          args: deploy --only hosting
-        env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}" --project blooket-fun
