@@ -4,7 +4,7 @@
     // ==========================================
     // 1. ENGINE & UTILITIES
     // ==========================================
-    
+    // test
     const internals = {
         getGameState: () => { try { const el = document.querySelector("#app"); if (!el) return null; const rk = Object.keys(el).find(k => k.startsWith("__reactContainer$")); if (!rk) return null; let n = el[rk]; while (n) { if (n.stateNode?.props?.liveGameController) return n.stateNode; n = n.child; } return null; } catch (e) { return null; } },
         getWorkingStateNode: () => { try { const reactNode = (function react(r = document.querySelector("body>div")) { return Object.values(r)[1]?.children?.[0]?._owner.stateNode ? r : react(r.querySelector(":scope>div")); })(); return Object.values(reactNode)[1].children[0]._owner.stateNode; } catch (e) { return null; } },
